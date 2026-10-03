@@ -41,7 +41,9 @@ jobs:
 
       - name: Install API dependencies
         working-directory: apps/api
-        run: npm install
+        run: npm install --include=dev
+          npm install @nestjs/platform-express@10.4.0
+          npm ls @nestjs/platform-express
 
       - name: Build API
         working-directory: apps/api
