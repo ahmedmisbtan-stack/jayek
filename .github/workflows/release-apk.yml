@@ -1,0 +1,46 @@
+name: JAYEK Release APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [mobile, rider]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate Android project
+        working-directory: apps/${{ matrix.app }}
+        run: flutter create --platforms=android --org com.jayek --project-name ${{ matrix.app == 'mobile' && 'app' || 'rider' }} .
+      - name: Install dependencies
+        working-directory: apps/${{ matrix.app }}
+        run: flutter pub get
+      - name: Analyze
+        working-directory: apps/${{ matrix.app }}
+        run: flutter analyze
+      - name: Test
+        working-directory: apps/${{ matrix.app }}
+        run: flutter test
+      - name: Build release APK
+        working-directory: apps/${{ matrix.app }}
+        env:
+          JAYEK_API: ${{ vars.JAYEK_API }}
+        run: |
+          test -n "$JAYEK_API" || { echo "Repository variable JAYEK_API is required"; exit 1; }
+          flutter build apk --release --dart-define=JAYEK_API="$JAYEK_API"
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: jayek-${{ matrix.app }}-release
+          path: apps/${{ matrix.app }}/build/app/outputs/flutter-apk/app-release.apk
