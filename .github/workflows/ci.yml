@@ -44,12 +44,19 @@ jobs:
           cache: true
       - name: Generate Android platform files
         run: flutter create --platforms=android --project-name jayek_mobile .
+      - name: Remove generated sample test
+        run: rm -f test/widget_test.dart
       - name: Get packages
         run: flutter pub get
       - name: Analyze
         run: flutter analyze
       - name: Build debug APK
         run: flutter build apk --debug --dart-define=JAYEK_API=https://example.invalid/api/v1
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: jayek-customer-debug-apk
+          path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
 
   rider:
     runs-on: ubuntu-latest
