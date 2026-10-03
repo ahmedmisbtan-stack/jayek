@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
 
 const primary = Color(0xFF176B4D);
 const accent = Color(0xFFF39A3D);
@@ -171,6 +172,7 @@ class _RiderHomeState extends State<RiderHome> {
   Map<String, dynamic> earnings = {};
   bool online = false;
   bool loading = true;
+  StreamSubscription<Position>? locationSub;
 
   @override void initState() { super.initState(); load(); }
 
