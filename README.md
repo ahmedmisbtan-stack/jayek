@@ -1,5 +1,5 @@
 
-> Current release: **JAYEK v2.0.0 — Pilot Readiness**
+> Current release: **JAYEK v3.3.1 — COD-Only Pilot**
 
 # JAYEK Platform — v0.9 Production Security & Reliability
 
@@ -62,3 +62,10 @@ CI/CD foundations are in `.github/workflows/`. Local/staging checks are availabl
 - CI builds debug and release APKs and runs Flutter analysis/tests.
 - Security smoke covers authentication/RBAC, malformed input, IDOR/idempotency replay, payment abuse, order lifecycle, review replay, and security headers.
 - OWASP ZAP baseline scanning is included in CI.
+
+## v3.3.1 — COD-only pilot
+- Checkout accepts **cash on delivery only**.
+- Every new order records a `CASH` payment as `PENDING`.
+- A COD payment is marked `PAID` only when the assigned rider marks the order `DELIVERED`.
+- Online card/wallet checkout is rejected by the API until a future payment provider is intentionally enabled.
+- App checkout displays the COD payment method directly; no online-payment selection is exposed.
