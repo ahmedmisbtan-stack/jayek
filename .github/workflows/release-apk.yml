@@ -25,6 +25,9 @@ jobs:
       - name: Generate Android project
         working-directory: apps/${{ matrix.app }}
         run: flutter create --platforms=android --org com.jayek --project-name ${{ matrix.app == 'mobile' && 'app' || 'rider' }} .
+      - name: Remove generated sample test
+        working-directory: apps/${{ matrix.app }}
+        run: rm -f test/widget_test.dart
       - name: Install dependencies
         working-directory: apps/${{ matrix.app }}
         run: flutter pub get
