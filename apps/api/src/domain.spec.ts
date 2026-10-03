@@ -1,7 +1,7 @@
 import { API_VERSION, ORDER_TRANSITIONS, distanceKm, deliveryFee } from './domain';
 
 describe('JAYEK domain invariants', () => {
-  it('uses the pilot-ready API version', () => expect(API_VERSION).toBe('2.3.0'));
+  it('uses the pilot-ready API version', () => expect(API_VERSION).toBe('3.3.0'));
   it('allows only the intended order lifecycle', () => {
     expect(ORDER_TRANSITIONS.CREATED).toContain('CONFIRMED');
     expect(ORDER_TRANSITIONS.CONFIRMED).toContain('ACCEPTED_BY_MERCHANT');
