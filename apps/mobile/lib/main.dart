@@ -16,10 +16,10 @@ class Api{
     final u=Uri.parse(apiBase+path);
     try{
       late http.Response r;
-      if(method=='GET')r=await http.get(u,headers:h).timeout(const Duration(seconds:15));
-      else if(method=='POST')r=await http.post(u,headers:h,body:jsonEncode(body??{})).timeout(const Duration(seconds:15));
-      else if(method=='PATCH')r=await http.patch(u,headers:h,body:jsonEncode(body??{})).timeout(const Duration(seconds:15));
-       else r=await http.delete(u,headers:h).timeout(const Duration(seconds:15));
+      if(method=='GET'){r=await http.get(u,headers:h).timeout(const Duration(seconds:15));}
+      else if(method=='POST'){r=await http.post(u,headers:h,body:jsonEncode(body??{})).timeout(const Duration(seconds:15));}
+      else if(method=='PATCH'){r=await http.patch(u,headers:h,body:jsonEncode(body??{})).timeout(const Duration(seconds:15));}
+       else {r=await http.delete(u,headers:h).timeout(const Duration(seconds:15));}
       if(r.statusCode==401 && refreshToken!=null && !path.startsWith('/auth/')){
         final ok=await refresh();
         if(ok)return await call(method,path,body,key);
@@ -233,8 +233,8 @@ class _HomeState extends State<Home> {
   }
 }
 class VillagePicker extends StatelessWidget{final String current;final ValueChanged<String> onPick;const VillagePicker({super.key,required this.current,required this.onPick});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:SafeArea(child:Padding(padding:const EdgeInsets.all(18),child:Column(mainAxisSize:MainAxisSize.min,children:[const Text('اختار منطقتك',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),for(final v in ['الديسمي','الصف','القرى المجاورة'])ListTile(title:Text(v),leading:Icon(v==current?Icons.radio_button_checked:Icons.radio_button_off,color:primary),onTap:()=>onPick(v))]))));}
-class MerchantTile extends StatelessWidget{final Map m;final VoidCallback onTap;const MerchantTile({super.key,required this.m,required this.onTap});@override Widget build(BuildContext c)=>Card(elevation:0,child:ListTile(onTap:onTap,leading:CircleAvatar(backgroundColor:secondary.withOpacity(.18),child:const Icon(Icons.storefront,color:primary)),title:Text('${m['name']}',style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text('⭐ ${m['rating']??'—'}  •  ${m['delivery_minutes']??'—'} دقيقة  •  ${m['delivery_fee']??0} ج.م'),trailing:const Icon(Icons.chevron_left)));}
-class ProductTile extends StatelessWidget{final Map<String,dynamic> p;final VoidCallback onAdd;const ProductTile({super.key,required this.p,required this.onAdd});@override Widget build(BuildContext c)=>Card(elevation:0,child:ListTile(leading:Container(width:58,height:58,decoration:BoxDecoration(color:secondary.withOpacity(.15),borderRadius:BorderRadius.circular(14)),child:const Icon(Icons.fastfood,color:primary)),title:Text('${p['name']}',style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text('${p['price']} ج.م'),trailing:FilledButton(onPressed:onAdd,style:FilledButton.styleFrom(backgroundColor:primary),child:const Text('أضف'))));}
+class MerchantTile extends StatelessWidget{final Map m;final VoidCallback onTap;const MerchantTile({super.key,required this.m,required this.onTap});@override Widget build(BuildContext c)=>Card(elevation:0,child:ListTile(onTap:onTap,leading:CircleAvatar(backgroundColor:secondary.withValues(alpha:.18),child:const Icon(Icons.storefront,color:primary)),title:Text('${m['name']}',style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text('⭐ ${m['rating']??'—'}  •  ${m['delivery_minutes']??'—'} دقيقة  •  ${m['delivery_fee']??0} ج.م'),trailing:const Icon(Icons.chevron_left)));}
+class ProductTile extends StatelessWidget{final Map<String,dynamic> p;final VoidCallback onAdd;const ProductTile({super.key,required this.p,required this.onAdd});@override Widget build(BuildContext c)=>Card(elevation:0,child:ListTile(leading:Container(width:58,height:58,decoration:BoxDecoration(color:secondary.withValues(alpha:.15),borderRadius:BorderRadius.circular(14)),child:const Icon(Icons.fastfood,color:primary)),title:Text('${p['name']}',style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text('${p['price']} ج.م'),trailing:FilledButton(onPressed:onAdd,style:FilledButton.styleFrom(backgroundColor:primary),child:const Text('أضف'))));}
 class Merchant extends StatefulWidget{final Api api;final String id;final List<Line> cart;final VoidCallback onChanged;const Merchant({super.key,required this.api,required this.id,required this.cart,required this.onChanged});@override State<Merchant> createState()=>_MerchantState();}
 class _MerchantState extends State<Merchant>{Map d={};@override void initState(){super.initState();load();}Future<void> load()async{try{d=Map<String,dynamic>.from(await widget.api.get('/merchants/${widget.id}'));setState((){});}catch(_){}}@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(d['name']??'المتجر')),body:ListView(padding:const EdgeInsets.all(16),children:[if(d.isNotEmpty)Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:primary,borderRadius:BorderRadius.circular(20)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('${d['name']}',style:const TextStyle(color:Colors.white,fontSize:24,fontWeight:FontWeight.w900)),Text('⭐ ${d['rating']}  •  ${d['delivery_minutes']} دقيقة',style:const TextStyle(color:Colors.white70))])),const SizedBox(height:16),...List.from(d['products']??[]).map((p)=>ProductTile(p:Map<String,dynamic>.from(p),onAdd:(){widget.cart.add(Line(Map<String,dynamic>.from(p)));widget.onChanged();ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('اتضاف للسلة')));} ))])));}
 class MerchantList extends StatefulWidget {
@@ -296,7 +296,7 @@ class _SearchState extends State<Search> {
         ...merchants.map((m) => MerchantTile(m: Map<String, dynamic>.from(m as Map), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Merchant(api: widget.api, id: m['id'].toString(), cart: widget.cart, onChanged: widget.onChanged))))),
         const SizedBox(height: 10),
         const Text('المنتجات', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-        ...products.map((p) => ProductTile(p: Map<String, dynamic>.from(p as Map), onAdd: () { widget.cart.add(Line(Map<String, dynamic>.from(p as Map))); widget.onChanged(); })),
+        ...products.map((p) => ProductTile(p: Map<String, dynamic>.from(p), onAdd: () { widget.cart.add(Line(Map<String, dynamic>.from(p as Map))); widget.onChanged(); })),
       ]),
     ));
   }
@@ -374,7 +374,7 @@ class _CartState extends State<Cart> {
         const SizedBox(height: 16),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           const Text('الإجمالي', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-          Text('${(shown as num).toStringAsFixed(0)} ج.م', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: primary)),
+          Text('${shown.toStringAsFixed(0)} ج.م', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: primary)),
         ]),
         const SizedBox(height: 16),
         SizedBox(height: 52, width: double.infinity, child: FilledButton(onPressed: widget.cart.isEmpty || busy ? null : checkout, style: FilledButton.styleFrom(backgroundColor: primary), child: Text(busy ? 'جاري إنشاء الطلب...' : 'تأكيد الطلب — الدفع عند الاستلام'))),
