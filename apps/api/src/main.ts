@@ -111,14 +111,16 @@ class AppController {
   @Post('auth/refresh') async refresh(@Body() b:any){
     if(!b?.refreshToken) throw new UnauthorizedException('Refresh token مطلوب');
     const hash=hashToken(String(b.refreshToken));
-    const row=(await this.db.query(`SELECT rt.*,u.role,u.is_active FROM refresh_tokens rt JOIN users u ON u.id=rt.user_id WHERE rt.token_hash=$1 AND rt.revoked_at IS NULL AND rt.expires_at>now()`,[hash])).rows[0];
-    if(!row || !row.is_active) throw new UnauthorizedException('جلسة التحديث غير صالحة');
-    await this.db.query('UPDATE refresh_tokens SET revoked_at=now() WHERE id=$1',[row.id]);
-    const accessToken=signToken({sub:row.user_id,role:row.role});
-    const next=randomUUID()+'.'+randomUUID();
-    await this.db.query(`INSERT INTO refresh_tokens(id,user_id,token_hash,expires_at) VALUES($1,$2,$3,now()+($4 * interval '1 day'))`,[randomUUID(),row.user_id,hashToken(next),REFRESH_TOKEN_TTL_DAYS]);
-    await this.db.query(`INSERT INTO audit_logs(user_id,action,entity_type,entity_id) VALUES($1,'AUTH_REFRESH','USER',$1)`,[row.user_id]);
-    return {accessToken,refreshToken:next,tokenType:'Bearer',expiresIn:Number(process.env.ACCESS_TOKEN_TTL_SECONDS||3600),refreshExpiresIn:REFRESH_TOKEN_TTL_DAYS*86400};
+    return this.db.tx(async c=>{
+      const row=(await c.query(`SELECT rt.*,u.role,u.is_active FROM refresh_tokens rt JOIN users u ON u.id=rt.user_id WHERE rt.token_hash=$1 AND rt.revoked_at IS NULL AND rt.expires_at>now() FOR UPDATE OF rt`,[hash])).rows[0];
+      if(!row || !row.is_active) throw new UnauthorizedException('جلسة التحديث غير صالحة');
+      await c.query('UPDATE refresh_tokens SET revoked_at=now() WHERE id=$1 AND revoked_at IS NULL',[row.id]);
+      const accessToken=signToken({sub:row.user_id,role:row.role});
+      const next=randomUUID()+'.'+randomUUID();
+      await c.query(`INSERT INTO refresh_tokens(id,user_id,token_hash,expires_at) VALUES($1,$2,$3,now()+($4 * interval '1 day'))`,[randomUUID(),row.user_id,hashToken(next),REFRESH_TOKEN_TTL_DAYS]);
+      await c.query(`INSERT INTO audit_logs(user_id,action,entity_type,entity_id) VALUES($1,'AUTH_REFRESH','USER',$1)`,[row.user_id]);
+      return {accessToken,refreshToken:next,tokenType:'Bearer',expiresIn:Number(process.env.ACCESS_TOKEN_TTL_SECONDS||3600),refreshExpiresIn:REFRESH_TOKEN_TTL_DAYS*86400};
+    });
   }
   @Post('auth/logout') async logout(@Headers() h:any,@Body() b:any){
     const userId=this.userId(h);
