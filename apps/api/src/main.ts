@@ -156,6 +156,7 @@ class AppController {
   }
 
   private async actor(headers:any,roles:string[]){ const id=this.userId(headers); const r=await this.db.query('SELECT id,role,is_active FROM users WHERE id=$1',[id]); if(!r.rowCount||!r.rows[0].is_active||!roles.includes(r.rows[0].role)) throw new UnauthorizedException('غير مصرح'); return r.rows[0]; }
+  private async merchantActor(headers:any,merchantId:string){ const actor=await this.actor(headers,['MERCHANT','ADMIN','SUPER_ADMIN']); if(['ADMIN','SUPER_ADMIN'].includes(actor.role)) return actor; const owned=await this.db.query('SELECT 1 FROM merchants WHERE id=$1 AND owner_user_id=$2 AND is_active=true',[merchantId,actor.id]); if(!owned.rowCount) throw new ForbiddenException('غير مصرح لهذا المتجر'); return actor; }
 
   @Get('locations/villages') async villages(){ return (await this.db.query('SELECT id,name,center_latitude,center_longitude FROM villages WHERE is_active=true ORDER BY name')).rows; }
   @Get('delivery-zones') async deliveryZones(){ return (await this.db.query('SELECT id,name,center_latitude,center_longitude,radius_km,base_fee,per_km_fee,min_fee FROM delivery_zones WHERE is_active=true ORDER BY name')).rows; }
@@ -275,11 +276,11 @@ class AppController {
       return {success:true,orderId:id,status:next};
     });
   }
-  @Get('merchant/orders/:merchantId') async merchantOrders(@Param('merchantId') merchantId:string,@Headers() h:any,@Query('status') status?:string){ await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']); const p=[merchantId];let sql='SELECT o.*,u.name customer_name,u.phone customer_phone FROM orders o JOIN users u ON u.id=o.user_id WHERE o.merchant_id=$1';if(status){p.push(status);sql+=' AND o.status=$2';}sql+=' ORDER BY o.created_at DESC';return (await this.db.query(sql,p)).rows; }
+  @Get('merchant/orders/:merchantId') async merchantOrders(@Param('merchantId') merchantId:string,@Headers() h:any,@Query('status') status?:string){ await this.merchantActor(h,merchantId); const p=[merchantId];let sql='SELECT o.*,u.name customer_name,u.phone customer_phone FROM orders o JOIN users u ON u.id=o.user_id WHERE o.merchant_id=$1';if(status){p.push(status);sql+=' AND o.status=$2';}sql+=' ORDER BY o.created_at DESC';return (await this.db.query(sql,p)).rows; }
   @Get('rider/tasks') async riderTasks(@Headers() h:any){ await this.actor(h,['RIDER','ADMIN','SUPER_ADMIN']); return (await this.db.query(`SELECT o.*,m.name merchant_name,m.village FROM orders o JOIN merchants m ON m.id=o.merchant_id WHERE o.status IN ('READY_FOR_PICKUP','ASSIGNED_RIDER') ORDER BY o.created_at`)).rows; }
 
   @Get('merchant/dashboard/:merchantId') async merchantDashboard(@Param('merchantId') merchantId:string,@Headers() h:any){
-    await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
+    await this.merchantActor(h,merchantId);
     const [orders,products,stats]=await Promise.all([
       this.db.query(`SELECT o.id,o.status,o.total,o.created_at,u.name customer_name,u.phone customer_phone FROM orders o JOIN users u ON u.id=o.user_id WHERE o.merchant_id=$1 ORDER BY o.created_at DESC LIMIT 50`,[merchantId]),
       this.db.query(`SELECT id,name,price,is_available,order_count FROM products WHERE merchant_id=$1 ORDER BY name`,[merchantId]),
@@ -288,14 +289,14 @@ class AppController {
     return {merchantId,stats:stats.rows[0],orders:orders.rows,products:products.rows};
   }
   @Get('merchant/orders/:merchantId/:orderId') async merchantOrder(@Param('merchantId') merchantId:string,@Param('orderId') orderId:string,@Headers() h:any){
-    await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
+    await this.merchantActor(h,merchantId);
     const o=(await this.db.query(`SELECT o.*,u.name customer_name,u.phone customer_phone,a.village,a.details address_details FROM orders o JOIN users u ON u.id=o.user_id LEFT JOIN addresses a ON a.id=o.address_id WHERE o.id=$1 AND o.merchant_id=$2`,[orderId,merchantId])).rows[0];
     if(!o) throw new NotFoundException('الطلب غير موجود');
     const items=(await this.db.query('SELECT * FROM order_items WHERE order_id=$1 ORDER BY id',[orderId])).rows;
     return {...o,items};
   }
   @Patch('merchant/orders/:merchantId/:orderId/status') async merchantStatus(@Param('merchantId') merchantId:string,@Param('orderId') orderId:string,@Headers() h:any,@Body() b:any){
-    await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
+    await this.merchantActor(h,merchantId);
     if(!['ACCEPTED_BY_MERCHANT','PREPARING','READY_FOR_PICKUP','REJECTED'].includes(b?.status)) throw new BadRequestException('حالة غير مسموحة للتاجر');
     const result=await this.db.tx(async c=>{
       const o=(await c.query('SELECT * FROM orders WHERE id=$1 AND merchant_id=$2 FOR UPDATE',[orderId,merchantId])).rows[0];
@@ -312,16 +313,19 @@ class AppController {
   @Post('merchant/products') async addProduct(@Headers() h:any,@Body() b:any){
     await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
     if(!b?.merchantId||!b?.name||b.price==null) throw new BadRequestException('بيانات المنتج ناقصة');
+    await this.merchantActor(h,String(b.merchantId));
     return (await this.db.query(`INSERT INTO products(merchant_id,category_id,name,description,price,image_url,is_available) VALUES($1,$2,$3,$4,$5,$6,COALESCE($7,true)) RETURNING *`,[b.merchantId,b.categoryId||null,b.name,b.description||null,b.price,b.imageUrl||null,b.isAvailable])).rows[0];
   }
   @Get('merchant/inventory/:merchantId') async merchantInventory(@Param('merchantId') merchantId:string,@Headers() h:any){
-    await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
+    await this.merchantActor(h,merchantId);
     const rows=(await this.db.query(`SELECT id,name,price,is_available,stock_quantity,low_stock_threshold,order_count,
       (stock_quantity <= low_stock_threshold) AS low_stock FROM products WHERE merchant_id=$1 ORDER BY low_stock DESC,name`,[merchantId])).rows;
     return {merchantId,items:rows,lowStockCount:rows.filter((x:any)=>x.low_stock).length};
   }
   @Patch('merchant/inventory/:productId') async updateInventory(@Param('productId') productId:string,@Headers() h:any,@Body() b:any){
-    await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
+    const productOwner=(await this.db.query('SELECT merchant_id FROM products WHERE id=$1',[productId])).rows[0];
+    if(!productOwner) throw new NotFoundException('المنتج غير موجود');
+    await this.merchantActor(h,String(productOwner.merchant_id));
     if(b?.stockQuantity==null || Number(b.stockQuantity)<0) throw new BadRequestException('stockQuantity غير صالح');
     const threshold=b.lowStockThreshold==null?undefined:Number(b.lowStockThreshold);
     if(threshold!==undefined && threshold<0) throw new BadRequestException('lowStockThreshold غير صالح');
@@ -332,7 +336,7 @@ class AppController {
     if(!r.rowCount) throw new NotFoundException('المنتج غير موجود'); return r.rows[0];
   }
   @Get('merchant/alerts/:merchantId') async merchantAlerts(@Param('merchantId') merchantId:string,@Headers() h:any){
-    await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
+    await this.merchantActor(h,merchantId);
     const [stock,orders]=await Promise.all([
       this.db.query(`SELECT id,name,stock_quantity,low_stock_threshold FROM products WHERE merchant_id=$1 AND is_available=true AND stock_quantity <= low_stock_threshold ORDER BY stock_quantity,name`,[merchantId]),
       this.db.query(`SELECT o.id,o.status,o.created_at,u.name customer_name FROM orders o JOIN users u ON u.id=o.user_id WHERE o.merchant_id=$1 AND o.status IN ('CREATED','CONFIRMED') ORDER BY o.created_at ASC`,[merchantId])
