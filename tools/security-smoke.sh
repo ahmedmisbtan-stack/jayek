@@ -82,7 +82,7 @@ expect_status 201 "$BASE_URL/payments/intent" -X POST -H 'content-type: applicat
 expect_status 200 "$BASE_URL/merchant/orders/$merchant_id/$order_id/status" -X PATCH -H 'content-type: application/json' -H "Authorization: Bearer $merchant_token" --data '{"status":"ACCEPTED_BY_MERCHANT"}'
 expect_status 200 "$BASE_URL/merchant/orders/$merchant_id/$order_id/status" -X PATCH -H 'content-type: application/json' -H "Authorization: Bearer $merchant_token" --data '{"status":"PREPARING"}'
 expect_status 200 "$BASE_URL/merchant/orders/$merchant_id/$order_id/status" -X PATCH -H 'content-type: application/json' -H "Authorization: Bearer $merchant_token" --data '{"status":"READY_FOR_PICKUP"}'
-expect_status 201 "$BASE_URL/rider/tasks/$order_id/accept" -X POST -H "Authorization: Bearer $rider_token"
+expect_status 200 "$BASE_URL/rider/tasks/$order_id/accept" -X POST -H "Authorization: Bearer $rider_token"
 expect_status 200 "$BASE_URL/rider/orders/$order_id/status" -X PATCH -H 'content-type: application/json' -H "Authorization: Bearer $rider_token" --data '{"status":"PICKED_UP"}'
 expect_status 200 "$BASE_URL/rider/orders/$order_id/status" -X PATCH -H 'content-type: application/json' -H "Authorization: Bearer $rider_token" --data '{"status":"ON_THE_WAY"}'
 expect_status 200 "$BASE_URL/rider/orders/$order_id/status" -X PATCH -H 'content-type: application/json' -H "Authorization: Bearer $rider_token" --data '{"status":"DELIVERED"}'
