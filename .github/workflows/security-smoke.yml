@@ -45,7 +45,9 @@ jobs:
 
       - name: Build API
         working-directory: apps/api
-        run: npm run build
+        run: |
+          npm install @nestjs/platform-express@^10.4.0
+          npm run build
 
       - name: Initialize database
         run: PGPASSWORD=jayek_test_password psql -h 127.0.0.1 -U jayek -d jayek -f infra/schema.sql
