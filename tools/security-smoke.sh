@@ -9,6 +9,7 @@ MERCHANT_PHONE="${MERCHANT_PHONE:-01000000002}"
 RIDER_PHONE="${RIDER_PHONE:-01000000003}"
 
 fail(){ echo "SECURITY_SMOKE_FAIL: $*" >&2; exit 1; }
+curl(){ command curl --connect-timeout 5 --max-time 20 "$@"; }
 req(){ curl -sS --fail-with-body "$@"; }
 status(){ curl -sS -o /tmp/jayek-response.json -w '%{http_code}' "$@"; }
 expect_status(){ local expected="$1"; shift; local actual; actual="$(status "$@")"; if [[ "$actual" != "$expected" ]]; then cat /tmp/jayek-response.json >&2 || true; fail "expected HTTP $expected, got $actual"; fi; }
