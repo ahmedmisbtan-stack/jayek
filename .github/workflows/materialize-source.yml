@@ -9,22 +9,33 @@ permissions:
 
 jobs:
   materialize:
-    if: ${{ hashFiles('jayek-source.part01', 'jayek-source.part02', 'jayek-source.part03', 'jayek-source.part04', 'jayek-source.part05', 'jayek-source.part06', 'jayek-source.part07', 'jayek-source.part08') != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check for archive parts
+        id: parts
+        shell: bash
+        run: |
+          if [ -f jayek-source.part01 ] && [ -f jayek-source.part02 ] && [ -f jayek-source.part03 ] && [ -f jayek-source.part04 ] && [ -f jayek-source.part05 ] && [ -f jayek-source.part06 ] && [ -f jayek-source.part07 ] && [ -f jayek-source.part08 ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Rebuild source archive
+        if: steps.parts.outputs.present == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          cat jayek-source.part01               jayek-source.part02               jayek-source.part03               jayek-source.part04               jayek-source.part05               jayek-source.part06               jayek-source.part07               jayek-source.part08 > jayek-source.b64
+          cat jayek-source.part01 jayek-source.part02 jayek-source.part03 jayek-source.part04 jayek-source.part05 jayek-source.part06 jayek-source.part07 jayek-source.part08 > jayek-source.b64
           base64 -d jayek-source.b64 > jayek-source.tar.gz
           tar -xzf jayek-source.tar.gz
-          rm -f jayek-source.part01 jayek-source.part02 jayek-source.part03 jayek-source.part04                 jayek-source.part05 jayek-source.part06 jayek-source.part07 jayek-source.part08                 jayek-source.b64 jayek-source.tar.gz
+          rm -f jayek-source.part01 jayek-source.part02 jayek-source.part03 jayek-source.part04 jayek-source.part05 jayek-source.part06 jayek-source.part07 jayek-source.part08 jayek-source.b64 jayek-source.tar.gz
 
       - name: Commit materialized source
+        if: steps.parts.outputs.present == 'true'
         shell: bash
         run: |
           set -euo pipefail
