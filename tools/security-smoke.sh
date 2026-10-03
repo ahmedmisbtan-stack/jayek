@@ -73,4 +73,20 @@ expect_status 400 "$BASE_URL/payments/intent" -X POST -H 'content-type: applicat
 expect_status 200 "$BASE_URL/rider/online" -X PATCH -H 'content-type: application/json' -H "Authorization: Bearer $rider_token" --data '{"online":true}'
 expect_status 400 "$BASE_URL/rider/location" -X PATCH -H 'content-type: application/json' -H "Authorization: Bearer $rider_token" --data '{"latitude":999,"longitude":999}'
 
+# Closed-loop order lifecycle: payment -> merchant -> rider -> delivery -> customer tracking.
+expect_status 200 "$BASE_URL/payments/intent" -X POST -H 'content-type: application/json' -H "Authorization: Bearer $customer_token" --data "$(jq -nc --arg o "$order_id" '{orderId:$o,method:"CASH}")"
+expect_status 200 "$BASE_URL/merchant/orders/$merchant_id/$order_id/status" -X PATCH -H 'content-type: application/json' -H "Authorization: Bearer $merchant_token" --data '{"status":"ACCEPTED_BY_MERCHANT"}'
+expect_status 200 "$BASE_URL/merchant/orders/$merchant_id/$order_id/status" -X PATCH -H 'content-type: application/json' -H "Authorization: Bearer $merchant_token" --data '{"status":"PREPARING"}'
+expect_status 200 "$BASE_URL/merchant/orders/$merchant_id/$order_id/status" -X PATCH -H 'content-type: application/json' -H "Authorization: Bearer $merchant_token" --data '{"status":"READY_FOR_PICKUP"}"
+expect_status 200 "$BASE_URL/rider/tasks/$order_id/accept" -X POST -H "Authorization: Bearer $rider_token"
+expect_status 200 "$BASE_URL/rider/orders/$order_id/status" -X PATCH -H 'content-type: application/json' -H "Authorization: Bearer $rider_token" --data '{"status":"PICKED_UP"}'
+expect_status 200 "$BASE_URL/rider/orders/$order_id/status" -X PATCH -H 'content-type: application/json' -H "Authorization: Bearer $rider_token" --data '{"status":"ON_THE_WAY"}'
+expect_status 200 "$BASE_URL/rider/orders/$order_id/status" -X PATCH -H 'content-type: application/json' -H "Authorization: Bearer $rider_token" --data '{"status":"DELIVERED"}'
+curl -sS "$BASE_URL/tracking/$order_id" -H "Authorization: Bearer $customer_token" > /tmp/jayek-response.json
+[[ "$(json '.status')" == "DELIVERED" ]] || fail "closed-loop delivery did not finish as DELIVERED"
+
+# A customer may review a delivered order only once.
+expect_status 201 "$BASE_URL/reviews" -X POST -H 'content-type: application/json' -H "Authorization: Bearer $customer_token" --data "$(jq -nc --arg o "$order_id" '{orderId:$o,rating:5,comment:"اختبار آمن"}')"
+expect_status 409 "$BASE_URL/reviews" -X POST -H 'content-type: application/json' -H "Authorization: Bearer $customer_token" --data "$(jq -nc --arg o "$order_id" '{orderId:$o,rating:4,comment:"تكرار"}')"
+
 echo "SECURITY_SMOKE_OK"
