@@ -212,7 +212,7 @@ class _RiderHomeState extends State<RiderHome> {
     catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()))); }
   }
 
-  Future<void> sendDemoLocation() async {
+  Future<void> sendCurrentLocation() async {
     try {
       await widget.api.patch('/rider/location', {'latitude': 29.6465, 'longitude': 31.3185, 'accuracy': 30});
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث موقع الكابتن — وضع التجربة')));
