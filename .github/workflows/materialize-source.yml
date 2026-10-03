@@ -28,6 +28,7 @@ jobs:
           SRC=/tmp/jayek-upload/jayek-github-upload
           test -d "$SRC"
           cp -a "$SRC"/. .
+          rm -rf .github/workflows
           rm -f jayek-github-upload.zip
           rm -f jayek-source.part01 jayek-source.part02 jayek-source.part03 jayek-source.part04                 jayek-source.part05 jayek-source.part06 jayek-source.part07 jayek-source.part08                 jayek-source.b64 jayek-source.tar.gz
           rm -f MATERIALIZE_TRIGGER.md
