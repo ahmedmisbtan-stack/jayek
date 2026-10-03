@@ -1,0 +1,21 @@
+node_modules/
+dist/
+.dart_tool/
+build/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.idea/
+.vscode/
+
+# Firebase local/private configuration
+**/google-services.json
+**/GoogleService-Info.plist
+**/*firebase-adminsdk*.json
+firebase-debug.log*
+.firebase/
+# Firebase Android config is injected separately when Android builds are enabled.
+apps/mobile/firebase/google-services.json
+apps/rider/firebase/google-services.json

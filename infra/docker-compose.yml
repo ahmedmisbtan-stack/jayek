@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: jayek
+      POSTGRES_USER: jayek
+      POSTGRES_PASSWORD: jayek_dev_password
+    ports: ['5432:5432']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U jayek -d jayek']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes: [jayek_pg:/var/lib/postgresql/data, ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro]
+  redis:
+    image: redis:7-alpine
+    ports: ['6379:6379']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  api:
+    build: ../apps/api
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://jayek:jayek_dev_password@postgres:5432/jayek
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: change-this-in-local-only
+      ALLOW_DEV_HEADERS: 'false'
+      OTP_PROVIDER: console
+      PUSH_PROVIDER: console
+      MAP_PROVIDER: haversine
+      PAYMENT_PROVIDER: cod
+      STORAGE_PROVIDER: local
+    ports: ['3000:3000']
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
