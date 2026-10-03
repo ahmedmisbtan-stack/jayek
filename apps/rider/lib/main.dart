@@ -14,6 +14,7 @@ void main() => runApp(const RiderApp());
 
 class RiderApi {
   String? token;
+  String? refreshToken;
   Future<dynamic> call(String method, String path, {Map<String, dynamic>? body}) async {
     final headers = <String, String>{
       'Content-Type': 'application/json',
@@ -32,7 +33,7 @@ class RiderApi {
     } catch (_) {
       throw Exception('تعذر الاتصال بالخادم');
     }
-    if (response.statusCode == 401) throw Exception('جلسة الكابتن انتهت');
+    if (response.statusCode == 401 && refreshToken != null && !path.startsWith('/auth/')) { final ok=await refresh(); if(ok)return call(method,path,body:body); } if (response.statusCode == 401) throw Exception('جلسة الكابتن انتهت');
     if (response.statusCode >= 400) {
       String message = 'حدث خطأ';
       try {
@@ -48,18 +49,20 @@ class RiderApi {
   Future<dynamic> post(String path, Map<String, dynamic> body) => call('POST', path, body: body);
   Future<dynamic> patch(String path, Map<String, dynamic> body) => call('PATCH', path, body: body);
 
+  Future<bool> refresh() async {
+    try { final r=await post('/auth/refresh',{'refreshToken':refreshToken}); token=r['accessToken']?.toString(); refreshToken=r['refreshToken']?.toString(); await save(); return token!=null; } catch(_) { token=null; refreshToken=null; await save(); return false; }
+  }
+
   Future<void> save() async {
     final prefs = await SharedPreferences.getInstance();
-    if (token == null) {
-      await prefs.remove('riderToken');
-    } else {
-      await prefs.setString('riderToken', token!);
-    }
+    if (token == null) { await prefs.remove('riderToken'); } else { await prefs.setString('riderToken', token!); }
+    if (refreshToken == null) { await prefs.remove('riderRefreshToken'); } else { await prefs.setString('riderRefreshToken', refreshToken!); }
   }
 
   Future<void> restore() async {
     final prefs = await SharedPreferences.getInstance();
     token = prefs.getString('riderToken');
+    refreshToken = prefs.getString('riderRefreshToken');
   }
 }
 
@@ -73,7 +76,7 @@ class _RiderAppState extends State<RiderApp> {
   bool loading = true;
   @override void initState() { super.initState(); restore(); }
   Future<void> restore() async { await api.restore(); if (mounted) setState(() => loading = false); }
-  Future<void> logout() async { api.token = null; await api.save(); if (mounted) setState(() {}); }
+  Future<void> logout() async { api.token = null; api.refreshToken = null; await api.save(); if (mounted) setState(() {}); }
   @override Widget build(BuildContext context) {
     if (loading) return const MaterialApp(home: Scaffold(body: Center(child: CircularProgressIndicator())));
     return MaterialApp(
@@ -123,6 +126,7 @@ class _RiderLoginState extends State<RiderLogin> {
       final user = data['user'];
       if (user is! Map || user['role'] != 'RIDER') throw Exception('هذا الحساب ليس حساب كابتن');
       widget.api.token = data['accessToken']?.toString();
+      widget.api.refreshToken = data['refreshToken']?.toString();
       await widget.api.save();
       widget.onDone();
     } catch (e) {
