@@ -16,7 +16,18 @@ const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 120);
 const rateBuckets = new Map<string,{start:number,count:number}>();
 function hashToken(v:string){ return createHash('sha256').update(v).digest('hex'); }
 function signToken(payload:any){ const body=Buffer.from(JSON.stringify({...payload,exp:Math.floor(Date.now()/1000)+Number(process.env.ACCESS_TOKEN_TTL_SECONDS||3600)})).toString('base64url'); const sig=createHmac('sha256',JWT_SECRET).update(body).digest('base64url'); return `${body}.${sig}`; }
-function verifyToken(token:string){ const [body,sig]=String(token||'').split('.'); if(!body||!sig)return null; const expected=createHmac('sha256',JWT_SECRET).update(body).digest('base64url'); if(sig!==expected)return null; const p=JSON.parse(Buffer.from(body,'base64url').toString()); if(p.exp<Date.now()/1000)return null; return p; }
+function verifyToken(token:string){
+  try{
+    const [body,sig]=String(token||'').split('.');
+    if(!body||!sig)return null;
+    const expected=createHmac('sha256',JWT_SECRET).update(body).digest('base64url');
+    const a=Buffer.from(String(sig),'utf8'), b=Buffer.from(String(expected),'utf8');
+    if(a.length!==b.length || !require('crypto').timingSafeEqual(a,b))return null;
+    const p=JSON.parse(Buffer.from(body,'base64url').toString());
+    if(!p?.sub || Number(p.exp||0)<Date.now()/1000)return null;
+    return p;
+  }catch{return null;}
+}
 const API_ALLOWED_ORIGINS = String(process.env.CORS_ORIGINS || '').split(',').map(x=>x.trim()).filter(Boolean);
 const BRAND = { name:'جايك', latin:'JAYEK', tagline:'طلبك جايك .. كل اللي محتاجه لحد بابك', colors:{primary:'#176B4D',secondary:'#65B87A',accent:'#F39A3D',background:'#FFF8EA',text:'#202522'} };
 const SERVICES = ['FOOD','GROCERY','PHARMACY','STORES','VEGETABLES','BUTCHERY','BAKERY'];
@@ -196,7 +207,7 @@ class AppController {
     const userId=this.userId(h); const key=h['idempotency-key']; if(!key) throw new BadRequestException('Idempotency-Key مطلوب');
     const existing=await this.db.query('SELECT * FROM orders WHERE idempotency_key=$1',[key]); if(existing.rowCount) return this.orderById(existing.rows[0].id);
     if(!b?.merchantId||!Array.isArray(b.items)||!b.items.length) throw new BadRequestException('السلة غير صالحة');
-    return this.db.tx(async c=>{
+    const result=await this.db.tx(async c=>{
       const merchant=(await c.query('SELECT * FROM merchants WHERE id=$1 AND is_active=true FOR SHARE',[b.merchantId])).rows[0]; if(!merchant) throw new BadRequestException('المتجر غير متاح');
       const ids=b.items.map((x:any)=>x.productId); if(ids.length!==new Set(ids).size) throw new BadRequestException('لا يمكن تكرار المنتج داخل الطلب'); const ps=(await c.query('SELECT * FROM products WHERE id=ANY($1::uuid[]) AND merchant_id=$2 AND is_available=true FOR UPDATE',[ids,b.merchantId])).rows; const map=new Map(ps.map((p:any)=>[p.id,p]));
       if(ps.length!==new Set(ids).size) throw new BadRequestException('يوجد منتج غير متاح');
@@ -226,10 +237,11 @@ class AppController {
       for(const x of items) await c.query('INSERT INTO order_items(order_id,product_id,name_snapshot,unit_price,quantity,options_json) VALUES($1,$2,$3,$4,$5,$6)',[order.id,x.p.id,x.p.name,x.p.price,x.qty,JSON.stringify({})]);
       await this.reserveOrderStock(c,order.id,items);
       await c.query('INSERT INTO order_status_history(order_id,status,actor_type) VALUES($1,\'CREATED\',\'CUSTOMER\')',[order.id]);
-      await this.notifyOrderStatus(order.id,'CREATED');
       if(coupon){ await c.query('INSERT INTO coupon_redemptions(coupon_id,user_id,order_id,discount_amount) VALUES($1,$2,$3,$4)',[coupon.id,userId,order.id,discount]); await c.query('UPDATE coupons SET usage_count=usage_count+1 WHERE id=$1',[coupon.id]); }
       return {...order,items:items.map(x=>({product_id:x.p.id,name:x.p.name,unit_price:x.p.price,quantity:x.qty}))};
     });
+    await this.notifyOrderStatus(result.id,'CREATED');
+    return result;
   }
   async orderById(id:string){ const o=(await this.db.query('SELECT o.*,m.name merchant_name,m.delivery_minutes FROM orders o JOIN merchants m ON m.id=o.merchant_id WHERE o.id=$1',[id])).rows[0]; if(!o) throw new NotFoundException('الطلب غير موجود'); const items=(await this.db.query('SELECT * FROM order_items WHERE order_id=$1 ORDER BY id',[id])).rows; const history=(await this.db.query('SELECT * FROM order_status_history WHERE order_id=$1 ORDER BY created_at',[id])).rows; return {...o,items,history}; }
   @Get('coupons/validate') async validateCoupon(@Headers() h:any,@Query('code') code:string,@Query('subtotal') subtotalRaw:string){
@@ -264,6 +276,297 @@ class AppController {
     });
   }
   @Get('merchant/orders/:merchantId') async merchantOrders(@Param('merchantId') merchantId:string,@Headers() h:any,@Query('status') status?:string){ await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']); const p=[merchantId];let sql='SELECT o.*,u.name customer_name,u.phone customer_phone FROM orders o JOIN users u ON u.id=o.user_id WHERE o.merchant_id=$1';if(status){p.push(status);sql+=' AND o.status=$2';}sql+=' ORDER BY o.created_at DESC';return (await this.db.query(sql,p)).rows; }
+  @Get('rider/tasks') async riderTasks(@Headers() h:any){ await this.actor(h,['RIDER','ADMIN','SUPER_ADMIN']); return (await this.db.query(`SELECT o.*,m.name merchant_name,m.village FROM orders o JOIN merchants m ON m.id=o.merchant_id WHERE o.status IN ('READY_FOR_PICKUP','ASSIGNED_RIDER') ORDER BY o.created_at`)).rows; }
+
+  @Get('merchant/dashboard/:merchantId') async merchantDashboard(@Param('merchantId') merchantId:string,@Headers() h:any){
+    await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
+    const [orders,products,stats]=await Promise.all([
+      this.db.query(`SELECT o.id,o.status,o.total,o.created_at,u.name customer_name,u.phone customer_phone FROM orders o JOIN users u ON u.id=o.user_id WHERE o.merchant_id=$1 ORDER BY o.created_at DESC LIMIT 50`,[merchantId]),
+      this.db.query(`SELECT id,name,price,is_available,order_count FROM products WHERE merchant_id=$1 ORDER BY name`,[merchantId]),
+      this.db.query(`SELECT count(*)::int orders, count(*) FILTER(WHERE status='DELIVERED')::int delivered, count(*) FILTER(WHERE status IN ('CREATED','CONFIRMED','ACCEPTED_BY_MERCHANT','PREPARING','READY_FOR_PICKUP'))::int active, COALESCE(sum(total) FILTER(WHERE status='DELIVERED'),0) revenue FROM orders WHERE merchant_id=$1`,[merchantId])
+    ]);
+    return {merchantId,stats:stats.rows[0],orders:orders.rows,products:products.rows};
+  }
+  @Get('merchant/orders/:merchantId/:orderId') async merchantOrder(@Param('merchantId') merchantId:string,@Param('orderId') orderId:string,@Headers() h:any){
+    await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
+    const o=(await this.db.query(`SELECT o.*,u.name customer_name,u.phone customer_phone,a.village,a.details address_details FROM orders o JOIN users u ON u.id=o.user_id LEFT JOIN addresses a ON a.id=o.address_id WHERE o.id=$1 AND o.merchant_id=$2`,[orderId,merchantId])).rows[0];
+    if(!o) throw new NotFoundException('الطلب غير موجود');
+    const items=(await this.db.query('SELECT * FROM order_items WHERE order_id=$1 ORDER BY id',[orderId])).rows;
+    return {...o,items};
+  }
+  @Patch('merchant/orders/:merchantId/:orderId/status') async merchantStatus(@Param('merchantId') merchantId:string,@Param('orderId') orderId:string,@Headers() h:any,@Body() b:any){
+    await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
+    if(!['ACCEPTED_BY_MERCHANT','PREPARING','READY_FOR_PICKUP','REJECTED'].includes(b?.status)) throw new BadRequestException('حالة غير مسموحة للتاجر');
+    const result=await this.db.tx(async c=>{
+      const o=(await c.query('SELECT * FROM orders WHERE id=$1 AND merchant_id=$2 FOR UPDATE',[orderId,merchantId])).rows[0];
+      if(!o) throw new NotFoundException('الطلب غير موجود');
+      if(!TRANSITIONS[o.status]?.includes(b.status)) throw new BadRequestException(`invalid transition ${o.status} -> ${b.status}`);
+      await c.query('UPDATE orders SET status=$1,updated_at=now() WHERE id=$2',[b.status,orderId]);
+      if(b.status==='REJECTED') await this.releaseOrderStock(c,orderId,false);
+      await c.query('INSERT INTO order_status_history(order_id,status,actor_type,actor_id) VALUES($1,$2,\'MERCHANT\',$3)',[orderId,b.status,this.actorId(h)]);
+      return {orderId,status:b.status};
+    });
+    await this.notifyOrderStatus(result.orderId,result.status);
+    return this.orderById(result.orderId);
+  }
+  @Post('merchant/products') async addProduct(@Headers() h:any,@Body() b:any){
+    await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
+    if(!b?.merchantId||!b?.name||b.price==null) throw new BadRequestException('بيانات المنتج ناقصة');
+    return (await this.db.query(`INSERT INTO products(merchant_id,category_id,name,description,price,image_url,is_available) VALUES($1,$2,$3,$4,$5,$6,COALESCE($7,true)) RETURNING *`,[b.merchantId,b.categoryId||null,b.name,b.description||null,b.price,b.imageUrl||null,b.isAvailable])).rows[0];
+  }
+  @Get('merchant/inventory/:merchantId') async merchantInventory(@Param('merchantId') merchantId:string,@Headers() h:any){
+    await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
+    const rows=(await this.db.query(`SELECT id,name,price,is_available,stock_quantity,low_stock_threshold,order_count,
+      (stock_quantity <= low_stock_threshold) AS low_stock FROM products WHERE merchant_id=$1 ORDER BY low_stock DESC,name`,[merchantId])).rows;
+    return {merchantId,items:rows,lowStockCount:rows.filter((x:any)=>x.low_stock).length};
+  }
+  @Patch('merchant/inventory/:productId') async updateInventory(@Param('productId') productId:string,@Headers() h:any,@Body() b:any){
+    await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
+    if(b?.stockQuantity==null || Number(b.stockQuantity)<0) throw new BadRequestException('stockQuantity غير صالح');
+    const threshold=b.lowStockThreshold==null?undefined:Number(b.lowStockThreshold);
+    if(threshold!==undefined && threshold<0) throw new BadRequestException('lowStockThreshold غير صالح');
+    const fields=['stock_quantity=$1']; const values=[Math.floor(Number(b.stockQuantity))];
+    if(threshold!==undefined){fields.push('low_stock_threshold=$2');values.push(Math.floor(threshold));}
+    values.push(productId);
+    const r=await this.db.query(`UPDATE products SET ${fields.join(',')} WHERE id=$${values.length} RETURNING *`,values);
+    if(!r.rowCount) throw new NotFoundException('المنتج غير موجود'); return r.rows[0];
+  }
+  @Get('merchant/alerts/:merchantId') async merchantAlerts(@Param('merchantId') merchantId:string,@Headers() h:any){
+    await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
+    const [stock,orders]=await Promise.all([
+      this.db.query(`SELECT id,name,stock_quantity,low_stock_threshold FROM products WHERE merchant_id=$1 AND is_available=true AND stock_quantity <= low_stock_threshold ORDER BY stock_quantity,name`,[merchantId]),
+      this.db.query(`SELECT o.id,o.status,o.created_at,u.name customer_name FROM orders o JOIN users u ON u.id=o.user_id WHERE o.merchant_id=$1 AND o.status IN ('CREATED','CONFIRMED') ORDER BY o.created_at ASC`,[merchantId])
+    ]);
+    return {lowStock:stock.rows,pendingOrders:orders.rows};
+  }
+
+  @Patch('merchant/products/:id') async updateProduct(@Param('id') id:string,@Headers() h:any,@Body() b:any){
+    await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
+    const fields:any[]=[]; const values:any[]=[];
+    for(const [k,col] of Object.entries({name:'name',description:'description',price:'price',imageUrl:'image_url',isAvailable:'is_available'})){if(b[k]!==undefined){values.push(b[k]);fields.push(`${col}=$${values.length}`)}}
+    if(!fields.length) throw new BadRequestException('لا توجد تغييرات');
+    const product=(await this.db.query('SELECT merchant_id FROM products WHERE id=$1',[id])).rows[0];
+    if(!product) throw new NotFoundException('المنتج غير موجود');
+    const actorUser=this.userId(h);
+    if(h['x-user-id'] && process.env.NODE_ENV==='production') throw new UnauthorizedException('استخدم Bearer Token');
+    if((await this.db.query(`SELECT 1 FROM merchants m JOIN users u ON u.id=m.owner_user_id WHERE m.id=$1 AND u.id=$2`,[product.merchant_id,actorUser])).rowCount===0 && !['ADMIN','SUPER_ADMIN'].includes((await this.db.query('SELECT role FROM users WHERE id=$1',[actorUser])).rows[0]?.role)) throw new ForbiddenException('غير مصرح لهذا المتجر');
+    values.push(id);
+    const r=await this.db.query(`UPDATE products SET ${fields.join(',')} WHERE id=$${values.length} RETURNING *`,values); if(!r.rowCount) throw new NotFoundException('المنتج غير موجود'); return r.rows[0];
+  }
+
+  @Post('riders') async createRider(@Headers() h:any,@Body() b:any){
+    await this.actor(h,['ADMIN','SUPER_ADMIN']);
+    if(!b?.userId) throw new BadRequestException('userId مطلوب');
+    return (await this.db.query(`INSERT INTO riders(user_id,vehicle_type) VALUES($1,$2) ON CONFLICT(user_id) DO UPDATE SET vehicle_type=EXCLUDED.vehicle_type RETURNING *`,[b.userId,b.vehicleType||'MOTORCYCLE'])).rows[0];
+  }
+  @Get('rider/me') async riderMe(@Headers() h:any){ await this.actor(h,['RIDER','ADMIN','SUPER_ADMIN']); return (await this.db.query('SELECT r.*,u.name,u.phone FROM riders r JOIN users u ON u.id=r.user_id WHERE r.user_id=$1',[this.userId(h)])).rows[0]||null; }
+  @Patch('rider/online') async riderOnline(@Headers() h:any,@Body() b:any){ await this.actor(h,['RIDER','ADMIN','SUPER_ADMIN']); return (await this.db.query('UPDATE riders SET is_online=$1 WHERE user_id=$2 RETURNING *',[!!b?.online,this.userId(h)])).rows[0]; }
+  @Get('rider/tasks/available') async riderAvailable(@Headers() h:any){ await this.actor(h,['RIDER','ADMIN','SUPER_ADMIN']); return (await this.db.query(`SELECT o.id,o.total,o.status,o.created_at,m.name merchant_name,m.village,m.delivery_fee FROM orders o JOIN merchants m ON m.id=o.merchant_id WHERE o.status='READY_FOR_PICKUP' ORDER BY o.created_at ASC LIMIT 30`)).rows; }
+  @Get('rider/tasks/active') async riderActive(@Headers() h:any){ await this.actor(h,['RIDER','ADMIN','SUPER_ADMIN']); return (await this.db.query(`SELECT o.id,o.total,o.status,o.created_at,m.name merchant_name,m.village,m.delivery_fee,d.assigned_at,d.picked_up_at,d.delivered_at,d.proof_url FROM orders o JOIN deliveries d ON d.order_id=o.id JOIN riders r ON r.id=d.rider_id JOIN merchants m ON m.id=o.merchant_id WHERE r.user_id=$1 AND o.status IN ('ASSIGNED_RIDER','PICKED_UP','ON_THE_WAY') ORDER BY d.assigned_at DESC`,[this.userId(h)])).rows; }
+  @Get('rider/earnings') async riderEarnings(@Headers() h:any,@Query('days') days?:string){ await this.actor(h,['RIDER','ADMIN','SUPER_ADMIN']); const n=Math.min(Math.max(Number(days||30)||30,1),90); const rider=(await this.db.query('SELECT id FROM riders WHERE user_id=$1',[this.userId(h)])).rows[0]; if(!rider) throw new NotFoundException('السائق غير مسجل'); const rows=(await this.db.query(`SELECT count(*)::int deliveries, COALESCE(sum(o.delivery_fee),0)::numeric total_delivery_fees, COALESCE(sum(o.total),0)::numeric gross_order_value FROM deliveries d JOIN orders o ON o.id=d.order_id WHERE d.rider_id=$1 AND o.status='DELIVERED' AND d.delivered_at >= now() - ($2::text || ' days')::interval`,[rider.id,n])).rows[0]; return {days:n,deliveryCount:rows.deliveries,totalDeliveryFees:Number(rows.total_delivery_fees),grossOrderValue:Number(rows.gross_order_value)}; }
+  @Post('rider/tasks/:orderId/accept') async riderAccept(@Param('orderId') orderId:string,@Headers() h:any){
+    await this.actor(h,['RIDER','ADMIN','SUPER_ADMIN']); const rider=(await this.db.query('SELECT * FROM riders WHERE user_id=$1',[this.userId(h)])).rows[0]; if(!rider) throw new BadRequestException('السائق غير مسجل');
+    return this.db.tx(async c=>{const o=(await c.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE',[orderId])).rows[0];if(!o)throw new NotFoundException('الطلب غير موجود');if(o.status!=='READY_FOR_PICKUP')throw new BadRequestException('الطلب لم يعد متاحًا');await c.query('INSERT INTO deliveries(order_id,rider_id,assigned_at) VALUES($1,$2,now()) ON CONFLICT(order_id) DO UPDATE SET rider_id=EXCLUDED.rider_id,assigned_at=now()',[orderId,rider.id]);await c.query('UPDATE orders SET status=\'ASSIGNED_RIDER\',updated_at=now() WHERE id=$1',[orderId]);await c.query('INSERT INTO order_status_history(order_id,status,actor_type,actor_id) VALUES($1,\'ASSIGNED_RIDER\',\'RIDER\',$2)',[orderId,this.userId(h)]);return this.orderById(orderId);});
+  }
+  @Patch('rider/location') async riderLocation(@Headers() h:any,@Body() b:any){
+    await this.actor(h,['RIDER','ADMIN','SUPER_ADMIN']); if(b?.latitude==null||b?.longitude==null)throw new BadRequestException('الموقع مطلوب');
+    const rider=(await this.db.query('UPDATE riders SET latitude=$1,longitude=$2,is_online=true,last_location_at=now() WHERE user_id=$3 RETURNING *',[b.latitude,b.longitude,this.userId(h)])).rows[0];
+    if(!rider) throw new NotFoundException('السائق غير مسجل');
+    const active=(await this.db.query(`SELECT d.order_id FROM deliveries d JOIN orders o ON o.id=d.order_id WHERE d.rider_id=$1 AND o.status IN ('ASSIGNED_RIDER','PICKED_UP','ON_THE_WAY')`,[rider.id])).rows;
+    await this.db.query(`INSERT INTO rider_location_events(rider_id,order_id,latitude,longitude,accuracy) SELECT $1,d.order_id,$2,$3,$4 FROM deliveries d WHERE d.rider_id=$1 AND d.order_id IN (SELECT id FROM orders WHERE status IN ('ASSIGNED_RIDER','PICKED_UP','ON_THE_WAY'))`,[rider.id,b.latitude,b.longitude,b.accuracy||null]);
+    for(const a of active) realtime.emit('order:location',{orderId:a.order_id,riderId:rider.id,latitude:Number(b.latitude),longitude:Number(b.longitude),accuracy:b.accuracy||null,recordedAt:new Date().toISOString()});
+    return rider;
+  }
+  @Patch('rider/orders/:orderId/status') async riderStatus(@Param('orderId') orderId:string,@Headers() h:any,@Body() b:any){
+    await this.actor(h,['RIDER','ADMIN','SUPER_ADMIN']); const allowed=['PICKED_UP','ON_THE_WAY','DELIVERED']; if(!allowed.includes(b?.status))throw new BadRequestException('حالة غير مسموحة للسائق');
+    const result=await this.db.tx(async c=>{const o=(await c.query(`SELECT o.* FROM orders o JOIN deliveries d ON d.order_id=o.id JOIN riders r ON r.id=d.rider_id WHERE o.id=$1 AND r.user_id=$2 FOR UPDATE`,[orderId,this.userId(h)])).rows[0];if(!o)throw new NotFoundException('المهمة غير موجودة');if(!TRANSITIONS[o.status]?.includes(b.status))throw new BadRequestException(`invalid transition ${o.status} -> ${b.status}`);await c.query('UPDATE orders SET status=$1,updated_at=now() WHERE id=$2',[b.status,orderId]);if(b.status==='PICKED_UP')await c.query('UPDATE deliveries SET picked_up_at=now() WHERE order_id=$1',[orderId]);if(b.status==='DELIVERED'){await c.query('UPDATE deliveries SET delivered_at=now(),proof_url=COALESCE($2,proof_url) WHERE order_id=$1',[orderId,b.proofUrl||null]);await this.releaseOrderStock(c,orderId,true);}await c.query('INSERT INTO order_status_history(order_id,status,actor_type,actor_id) VALUES($1,$2,\'RIDER\',$3)',[orderId,b.status,this.userId(h)]);await this.notifyOrderStatus(orderId,b.status);realtime.emit('order:update',{orderId,status:b.status,updatedAt:new Date().toISOString()});return this.orderById(orderId);});
+  }
+
+  @Post('admin/dispatch/run') async dispatch(@Headers() h:any){
+    await this.actor(h,['ADMIN','SUPER_ADMIN']);
+    const assigned=await this.db.tx(async c=>{
+      const riders=(await c.query(`SELECT * FROM riders WHERE is_online=true ORDER BY last_location_at DESC NULLS LAST`)).rows;
+      const orders=(await c.query(`SELECT o.id,o.merchant_id,m.village,m.delivery_fee FROM orders o JOIN merchants m ON m.id=o.merchant_id WHERE o.status='READY_FOR_PICKUP' AND NOT EXISTS(SELECT 1 FROM deliveries d WHERE d.order_id=o.id) ORDER BY o.created_at ASC LIMIT 50 FOR UPDATE OF o`)).rows;
+      const assigned:any[]=[];
+      for(const o of orders){
+        const target=(await c.query('SELECT a.latitude,a.longitude FROM orders o LEFT JOIN addresses a ON a.id=o.address_id WHERE o.id=$1',[o.id])).rows[0];
+        let candidates=riders.filter((x:any)=>!assigned.some(a=>a.rider_id===x.id));
+        if(!candidates.length) continue;
+        if(target?.latitude!=null && target?.longitude!=null){ const withLocation=candidates.filter((x:any)=>x.latitude!=null&&x.longitude!=null); if(withLocation.length) candidates=withLocation; candidates.sort((a:any,b:any)=>distanceKm(Number(a.latitude||0),Number(a.longitude||0),Number(target.latitude),Number(target.longitude))-distanceKm(Number(b.latitude||0),Number(b.longitude||0),Number(target.latitude),Number(target.longitude))); }
+        const r=candidates[0];
+        await c.query('INSERT INTO deliveries(order_id,rider_id,assigned_at) VALUES($1,$2,now())',[o.id,r.id]);
+        await c.query("UPDATE orders SET status='ASSIGNED_RIDER',updated_at=now() WHERE id=$1",[o.id]);
+        await c.query("INSERT INTO order_status_history(order_id,status,actor_type,actor_id) VALUES($1,'ASSIGNED_RIDER','DISPATCH',$2)",[o.id,r.user_id]);
+        assigned.push({order_id:o.id,rider_id:r.id});
+      }
+      return assigned;
+    });
+    for(const item of assigned) await this.notifyOrderStatus(item.order_id,'ASSIGNED_RIDER');
+    return {assigned,count:assigned.length};
+  }
+  @Get('admin/orders') async adminOrders(@Headers() h:any,@Query('status') status?:string){ await this.actor(h,['ADMIN','SUPER_ADMIN']); const p:any[]=[];let sql=`SELECT o.*,m.name merchant_name,u.phone customer_phone FROM orders o JOIN merchants m ON m.id=o.merchant_id JOIN users u ON u.id=o.user_id`;if(status){p.push(status);sql+=' WHERE o.status=$1'}sql+=' ORDER BY o.created_at DESC LIMIT 200';return (await this.db.query(sql,p)).rows; }
+  @Get('admin/merchants') async adminMerchants(@Headers() h:any){ await this.actor(h,['ADMIN','SUPER_ADMIN']); return (await this.db.query(`SELECT m.*,count(p.id)::int product_count FROM merchants m LEFT JOIN products p ON p.merchant_id=m.id GROUP BY m.id ORDER BY m.created_at DESC`)).rows; }
+
+  @Get('tracking/:orderId') async tracking(@Param('orderId') orderId:string,@Headers() h:any){
+    const userId=this.userId(h);
+    const o=(await this.db.query(`SELECT o.id,o.status,o.updated_at,d.rider_id,r.latitude,r.longitude,r.last_location_at FROM orders o LEFT JOIN deliveries d ON d.order_id=o.id LEFT JOIN riders r ON r.id=d.rider_id WHERE o.id=$1 AND o.user_id=$2`,[orderId,userId])).rows[0];
+    if(!o) throw new NotFoundException('الطلب غير موجود');
+    const history=(await this.db.query('SELECT status,actor_type,created_at FROM order_status_history WHERE order_id=$1 ORDER BY created_at',[orderId])).rows;
+    return {orderId:o.id,status:o.status,updatedAt:o.updated_at,rider:o.rider_id?{id:o.rider_id,latitude:o.latitude,longitude:o.longitude,lastLocationAt:o.last_location_at}:null,history};
+  }
+  @Get('tracking/:orderId/route') async trackingRoute(@Param('orderId') orderId:string,@Headers() h:any){
+    const userId=this.userId(h);
+    const r=(await this.db.query(`SELECT o.id,o.status,r.latitude rider_latitude,r.longitude rider_longitude,a.latitude dest_latitude,a.longitude dest_longitude FROM orders o LEFT JOIN deliveries d ON d.order_id=o.id LEFT JOIN riders r ON r.id=d.rider_id LEFT JOIN addresses a ON a.id=o.address_id WHERE o.id=$1 AND o.user_id=$2`,[orderId,userId])).rows[0];
+    if(!r) throw new NotFoundException('الطلب غير موجود');
+    let etaMinutes:null|number=null, distanceKmValue:null|number=null;
+    if(r.rider_latitude!=null && r.rider_longitude!=null && r.dest_latitude!=null && r.dest_longitude!=null){
+      distanceKmValue=Number(distanceKm(Number(r.rider_latitude),Number(r.rider_longitude),Number(r.dest_latitude),Number(r.dest_longitude)).toFixed(2));
+      etaMinutes=Math.max(1,Math.ceil((distanceKmValue/25)*60));
+    }
+    return {orderId,status:r.status,from:r.rider_latitude!=null?{latitude:Number(r.rider_latitude),longitude:Number(r.rider_longitude)}:null,to:r.dest_latitude!=null?{latitude:Number(r.dest_latitude),longitude:Number(r.dest_longitude)}:null,distanceKm:distanceKmValue,etaMinutes};
+  }
+  @Get('tracking/:orderId/locations') async trackingLocations(@Param('orderId') orderId:string,@Headers() h:any){
+    const userId=this.userId(h);
+    const ok=await this.db.query('SELECT 1 FROM orders WHERE id=$1 AND user_id=$2',[orderId,userId]); if(!ok.rowCount) throw new NotFoundException('الطلب غير موجود');
+    return (await this.db.query('SELECT latitude,longitude,accuracy,recorded_at FROM rider_location_events WHERE order_id=$1 ORDER BY recorded_at DESC LIMIT 100',[orderId])).rows;
+  }
+  @Post('rider/orders/:orderId/proof') async riderProof(@Param('orderId') orderId:string,@Headers() h:any,@Body() b:any){
+    await this.actor(h,['RIDER','ADMIN','SUPER_ADMIN']);
+    if(!b?.proofUrl) throw new BadRequestException('proofUrl مطلوب');
+    const r=await this.db.query(`UPDATE deliveries d SET proof_url=$1 FROM riders r WHERE d.order_id=$2 AND d.rider_id=r.id AND r.user_id=$3 RETURNING d.*`,[b.proofUrl,orderId,this.userId(h)]);
+    if(!r.rowCount) throw new NotFoundException('التسليم غير موجود'); return r.rows[0];
+  }
+  @Get('notifications') async notifications(@Headers() h:any){ return (await this.db.query('SELECT * FROM notifications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 100',[this.userId(h)])).rows; }
+  @Patch('notifications/:id/read') async readNotification(@Param('id') id:string,@Headers() h:any){ const r=await this.db.query('UPDATE notifications SET read_at=COALESCE(read_at,now()) WHERE id=$1 AND user_id=$2 RETURNING *',[id,this.userId(h)]);if(!r.rowCount)throw new NotFoundException('الإشعار غير موجود');return r.rows[0]; }
+  @Post('reviews') async review(@Headers() h:any,@Body() b:any){ const userId=this.userId(h); if(!b?.orderId||!Number.isInteger(Number(b.rating))||Number(b.rating)<1||Number(b.rating)>5)throw new BadRequestException('التقييم غير صالح'); return this.db.tx(async c=>{const o=(await c.query(`SELECT * FROM orders WHERE id=$1 AND user_id=$2 AND status='DELIVERED'`,[b.orderId,userId])).rows[0];if(!o)throw new BadRequestException('لا يمكن تقييم هذا الطلب');const r=(await c.query('INSERT INTO reviews(order_id,user_id,merchant_id,rating,comment) VALUES($1,$2,$3,$4,$5) RETURNING *',[b.orderId,userId,o.merchant_id,b.rating,b.comment||null])).rows[0];await c.query(`UPDATE merchants SET rating=ROUND(((rating*GREATEST((SELECT count(*) FROM reviews WHERE merchant_id=$1)-1,0))+ $2)/(SELECT count(*) FROM reviews WHERE merchant_id=$1),1) WHERE id=$1`,[o.merchant_id,b.rating]);return r;}); }
+  @Post('support/tickets') async support(@Headers() h:any,@Body() b:any){if(!b?.subject||!b?.message)throw new BadRequestException('بيانات البلاغ ناقصة');const t=(await this.db.query('INSERT INTO support_tickets(user_id,order_id,subject,message,priority) VALUES($1,$2,$3,$4,$5) RETURNING *',[this.userId(h),b.orderId||null,b.subject,b.message,b.priority||'NORMAL'])).rows[0]; await this.notifyUser(this.userId(h),'SUPPORT','تم فتح بلاغ الدعم',`رقم البلاغ ${t.id} تم استلامه.`,{ticketId:t.id},`SUPPORT_CREATED:${t.id}`); return t;}
+  @Get('support/tickets') async myTickets(@Headers() h:any){return (await this.db.query('SELECT * FROM support_tickets WHERE user_id=$1 ORDER BY created_at DESC',[this.userId(h)])).rows;}
+  @Get('admin/support/tickets') async adminTickets(@Headers() h:any,@Query('status') status?:string){await this.actor(h,['ADMIN','SUPER_ADMIN']);const p:any[]=[];let sql='SELECT s.*,u.name user_name,u.phone FROM support_tickets s JOIN users u ON u.id=s.user_id';if(status){p.push(status);sql+=' WHERE s.status=$1';}sql+=' ORDER BY s.created_at DESC LIMIT 200';return (await this.db.query(sql,p)).rows;}
+  @Patch('admin/support/tickets/:id') async updateTicket(@Param('id') id:string,@Headers() h:any,@Body() b:any){await this.actor(h,['ADMIN','SUPER_ADMIN']);if(!['OPEN','IN_PROGRESS','RESOLVED','CLOSED'].includes(b?.status))throw new BadRequestException('حالة غير صالحة');const r=await this.db.query('UPDATE support_tickets SET status=$1,updated_at=now() WHERE id=$2 RETURNING *',[b.status,id]);if(!r.rowCount)throw new NotFoundException('البلاغ غير موجود');await this.notifyUser(r.rows[0].user_id,'SUPPORT','تحديث على بلاغ الدعم',`حالة البلاغ أصبحت ${b.status}.`,{ticketId:id,status:b.status},`SUPPORT_STATUS:${id}:${b.status}`);return r.rows[0];}
+  @Post('admin/support/tickets/:id/messages') async supportMessage(@Param('id') id:string,@Headers() h:any,@Body() b:any){const actor=await this.actor(h,['ADMIN','SUPER_ADMIN']);if(!b?.message)throw new BadRequestException('الرسالة مطلوبة');const r=await this.db.query('INSERT INTO support_ticket_messages(ticket_id,author_user_id,body) VALUES($1,$2,$3) RETURNING *',[id,actor.id,b.message]);const t=(await this.db.query('SELECT user_id FROM support_tickets WHERE id=$1',[id])).rows[0];if(t) await this.notifyUser(t.user_id,'SUPPORT','رسالة جديدة من الدعم',String(b.message).slice(0,180),{ticketId:id},`SUPPORT_MESSAGE:${id}:${r.rows[0].id}`);return r.rows[0];}
+  @Get('support/tickets/:id/messages') async ticketMessages(@Param('id') id:string,@Headers() h:any){const uid=this.userId(h);const allowed=(await this.db.query('SELECT 1 FROM support_tickets WHERE id=$1 AND user_id=$2',[id,uid])).rowCount; if(!allowed) throw new NotFoundException('البلاغ غير موجود'); return (await this.db.query('SELECT * FROM support_ticket_messages WHERE ticket_id=$1 ORDER BY created_at',[id])).rows;}
+  @Post('devices/push-token') async registerPushToken(@Headers() h:any,@Body() b:any){ const userId=this.userId(h); if(!b?.token||!['ANDROID','IOS','WEB'].includes(b.platform)) throw new BadRequestException('بيانات الجهاز غير صالحة'); await this.db.query(`INSERT INTO device_tokens(user_id,token,platform) VALUES($1,$2,$3) ON CONFLICT(token) DO UPDATE SET user_id=EXCLUDED.user_id,platform=EXCLUDED.platform,updated_at=now()`,[userId,b.token,b.platform]); return {success:true}; }
+  @Delete('devices/push-token/:token') async removePushToken(@Headers() h:any,@Param('token') token:string){ const userId=this.userId(h); await this.db.query('DELETE FROM device_tokens WHERE user_id=$1 AND token=$2',[userId,token]); return {success:true}; }
+  @Post('payments/intent') async paymentIntent(@Headers() h:any,@Body() b:any){
+    const userId=this.userId(h); const o=(await this.db.query('SELECT * FROM orders WHERE id=$1 AND user_id=$2',[b?.orderId,userId])).rows[0];
+    if(!o)throw new NotFoundException('الطلب غير موجود'); if(!['CASH','CARD','WALLET'].includes(b?.method))throw new BadRequestException('وسيلة دفع غير مدعومة');
+    const p=(await this.db.query(`INSERT INTO payments(order_id,user_id,method,status,amount,currency,provider) VALUES($1,$2,$3,'PENDING',$4,'EGP',$5) RETURNING *`,[o.id,userId,b.method,o.total,process.env.PAYMENT_PROVIDER||'cod'])).rows[0];
+    const intent=await this.integrations.payments.createIntent({paymentId:p.id,amount:Number(o.total),currency:'EGP',method:b.method,orderId:o.id,returnUrl:b.returnUrl});
+    if(intent.providerReference) await this.db.query('UPDATE payments SET provider_reference=$1,updated_at=now() WHERE id=$2',[intent.providerReference,p.id]);
+    const payment=(await this.db.query('SELECT * FROM payments WHERE id=$1',[p.id])).rows[0];
+    return {payment,nextAction:b.method==='CASH'?'NONE':(intent.checkoutUrl?'REDIRECT':'CONNECT_PROVIDER'),checkoutUrl:intent.checkoutUrl||null};
+  }
+  @Post('payments/:id/confirm') async confirmPayment(@Headers() h:any,@Param('id') id:string,@Body() b:any){ const userId=this.userId(h); const r=await this.db.query(`UPDATE payments SET status=$1,provider_reference=$2,updated_at=now() WHERE id=$3 AND user_id=$4 RETURNING *`,[b?.success===false?'FAILED':'PAID',b?.providerReference||null,id,userId]); if(!r.rowCount)throw new NotFoundException('عملية الدفع غير موجودة'); return r.rows[0]; }
+  @Get('payments/:id') async payment(@Headers() h:any,@Param('id') id:string){ const r=await this.db.query('SELECT * FROM payments WHERE id=$1 AND user_id=$2',[id,this.userId(h)]); if(!r.rowCount)throw new NotFoundException('عملية الدفع غير موجودة'); return r.rows[0]; }
+  @Post('maps/route') async mapsRoute(@Headers() h:any,@Body() b:any){ await this.userId(h); if(!b?.from||!b?.to) throw new BadRequestException('from/to مطلوبان'); return this.integrations.maps.route({lat:Number(b.from.latitude??b.from.lat),lon:Number(b.from.longitude??b.from.lon)},{lat:Number(b.to.latitude??b.to.lat),lon:Number(b.to.longitude??b.to.lon)}); }
+  @Post('storage/upload-target') async storageTarget(@Headers() h:any,@Body() b:any){ await this.actor(h,['MERCHANT','RIDER','ADMIN','SUPER_ADMIN']); if(!b?.key||!b?.contentType) throw new BadRequestException('key/contentType مطلوبان'); return this.integrations.storage.createUploadTarget({key:String(b.key),contentType:String(b.contentType)}); }
+  @Post('payments/webhook') async paymentWebhook(@Headers() h:any,@Req() req:any){ const raw=req.rawBody||Buffer.from(JSON.stringify(req.body||{})); const result=this.integrations.payments.verifyWebhook(raw,h['x-payment-signature']); if(!result.valid) throw new UnauthorizedException('توقيع الدفع غير صالح'); return {received:true}; }
+  @Post('admin/delivery-zones') async createZone(@Headers() h:any,@Body() b:any){
+    await this.actor(h,['ADMIN','SUPER_ADMIN']);
+    if(!b?.name || b.latitude==null || b.longitude==null) throw new BadRequestException('بيانات المنطقة ناقصة');
+    return (await this.db.query(`INSERT INTO delivery_zones(name,center_latitude,center_longitude,radius_km,base_fee,per_km_fee,min_fee,is_active) VALUES($1,$2,$3,$4,$5,$6,$7,COALESCE($8,true)) RETURNING *`,[b.name,b.latitude,b.longitude,b.radiusKm||8,b.baseFee||15,b.perKmFee||3,b.minFee||15,b.isActive])).rows[0];
+  }
+  @Patch('admin/delivery-zones/:id') async updateZone(@Param('id') id:string,@Headers() h:any,@Body() b:any){
+    await this.actor(h,['ADMIN','SUPER_ADMIN']); const map:any={name:'name',latitude:'center_latitude',longitude:'center_longitude',radiusKm:'radius_km',baseFee:'base_fee',perKmFee:'per_km_fee',minFee:'min_fee',isActive:'is_active'}; const fields:string[]=[]; const vals:any[]=[];
+    for(const [k,col] of Object.entries(map)){ if(b[k]!==undefined){ vals.push(b[k]); fields.push(`${col}=$${vals.length}`); } }
+    if(!fields.length) throw new BadRequestException('لا توجد تغييرات'); fields.push('updated_at=now()'); vals.push(id);
+    const r=await this.db.query(`UPDATE delivery_zones SET ${fields.join(',')} WHERE id=$${vals.length} RETURNING *`,vals); if(!r.rowCount) throw new NotFoundException('المنطقة غير موجودة'); return r.rows[0];
+  }
+  @Get('admin/delivery-zones') async adminZones(@Headers() h:any){ await this.actor(h,['ADMIN','SUPER_ADMIN']); return (await this.db.query('SELECT * FROM delivery_zones ORDER BY name')).rows; }
+  @Get('admin/operations/summary') async operationsSummary(@Headers() h:any){ await this.actor(h,['ADMIN','SUPER_ADMIN']);
+    const [status,zones,riders,merchants]=await Promise.all([
+      this.db.query(`SELECT status,count(*)::int count FROM orders GROUP BY status ORDER BY status`),
+      this.db.query(`SELECT z.name,z.is_active,COUNT(o.id)::int orders,COALESCE(SUM(o.total) FILTER(WHERE o.status='DELIVERED'),0) revenue FROM delivery_zones z LEFT JOIN addresses a ON a.latitude IS NOT NULL AND a.longitude IS NOT NULL LEFT JOIN orders o ON o.address_id=a.id GROUP BY z.id ORDER BY z.name`),
+      this.db.query(`SELECT COUNT(*)::int total,COUNT(*) FILTER(WHERE is_online)::int online,COUNT(*) FILTER(WHERE is_online AND last_location_at>now()-interval '10 minutes')::int active_recent FROM riders`),
+      this.db.query(`SELECT COUNT(*)::int total,COUNT(*) FILTER(WHERE is_active)::int active FROM merchants`)
+    ]);
+    return {ordersByStatus:status.rows,zones:zones.rows,riders:riders.rows[0],merchants:merchants.rows[0]};
+  }
+
+  @Get('admin/analytics') async analytics(@Headers() h:any,@Query('days') days='30'){
+    await this.actor(h,['ADMIN','SUPER_ADMIN']);
+    const n=Math.min(365,Math.max(1,Number(days)||30));
+    const commissionRate=Math.max(0,Math.min(1,Number(process.env.PLATFORM_COMMISSION_RATE||0.10)));
+    const [summary,daily,merchants,riders,zones,payments]=await Promise.all([
+      this.db.query(`SELECT COUNT(*)::int orders, COUNT(*) FILTER(WHERE status='DELIVERED')::int delivered,
+        COUNT(*) FILTER(WHERE status IN ('CANCELLED','REJECTED','FAILED_PAYMENT'))::int failed,
+        COALESCE(SUM(total) FILTER(WHERE status='DELIVERED'),0)::numeric revenue,
+        COALESCE(SUM(subtotal) FILTER(WHERE status='DELIVERED'),0)::numeric subtotal_revenue,
+        COALESCE(SUM(delivery_fee) FILTER(WHERE status='DELIVERED'),0)::numeric delivery_revenue
+        FROM orders WHERE created_at >= now()-($1::text || ' days')::interval`,[n]),
+      this.db.query(`SELECT date_trunc('day',created_at)::date day, COUNT(*)::int orders,
+        COUNT(*) FILTER(WHERE status='DELIVERED')::int delivered,
+        COALESCE(SUM(total) FILTER(WHERE status='DELIVERED'),0)::numeric revenue
+        FROM orders WHERE created_at >= now()-($1::text || ' days')::interval GROUP BY 1 ORDER BY 1`,[n]),
+      this.db.query(`SELECT m.id,m.name,m.village,COUNT(o.id)::int orders,
+        COUNT(o.id) FILTER(WHERE o.status='DELIVERED')::int delivered,
+        COALESCE(SUM(o.total) FILTER(WHERE o.status='DELIVERED'),0)::numeric revenue,
+        COALESCE(AVG(o.total) FILTER(WHERE o.status='DELIVERED'),0)::numeric avg_order_value,
+        m.rating FROM merchants m LEFT JOIN orders o ON o.merchant_id=m.id AND o.created_at >= now()-($1::text || ' days')::interval
+        GROUP BY m.id ORDER BY revenue DESC`,[n]),
+      this.db.query(`SELECT r.id,u.name,u.phone,r.is_online,COUNT(d.id)::int deliveries,
+        COUNT(d.id) FILTER(WHERE o.status='DELIVERED')::int delivered,
+        COALESCE(SUM(o.delivery_fee) FILTER(WHERE o.status='DELIVERED'),0)::numeric delivery_fees,
+        MAX(d.delivered_at) last_delivery FROM riders r JOIN users u ON u.id=r.user_id
+        LEFT JOIN deliveries d ON d.rider_id=r.id AND d.assigned_at >= now()-($1::text || ' days')::interval
+        LEFT JOIN orders o ON o.id=d.order_id GROUP BY r.id,u.id ORDER BY delivered DESC`,[n]),
+      this.db.query(`SELECT z.id,z.name,z.radius_km,z.base_fee,z.per_km_fee,z.is_active,COUNT(o.id)::int orders,
+        COUNT(o.id) FILTER(WHERE o.status='DELIVERED')::int delivered,
+        COALESCE(SUM(o.total) FILTER(WHERE o.status='DELIVERED'),0)::numeric revenue
+        FROM delivery_zones z LEFT JOIN addresses a ON a.latitude IS NOT NULL AND a.longitude IS NOT NULL
+        LEFT JOIN orders o ON o.address_id=a.id AND o.created_at >= now()-($1::text || ' days')::interval
+        GROUP BY z.id ORDER BY revenue DESC`,[n]),
+      this.db.query(`SELECT method,status,COUNT(*)::int count,COALESCE(SUM(amount),0)::numeric amount FROM payments
+        WHERE created_at >= now()-($1::text || ' days')::interval GROUP BY method,status ORDER BY method,status`,[n])
+    ]);
+    const s=summary.rows[0];
+    return {days:n,commissionRate,summary:{...s,platformCommission:Number(s.revenue)*commissionRate},daily:daily.rows,merchants:merchants.rows,riders:riders.rows,zones:zones.rows,payments:payments.rows};
+  }
+  @Get('admin/analytics/csv') async analyticsCsv(@Headers() h:any,@Query('days') days='30'){
+    const data=await this.analytics(h,days);
+    const rows=[['date','orders','delivered','revenue']];
+    for(const r of data.daily) rows.push([String(r.day),String(r.orders),String(r.delivered),String(r.revenue)]);
+    return rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  }
+
+  @Get('admin/audit-logs') async auditLogs(@Headers() h:any,@Query('limit') limit='100'){ await this.actor(h,['ADMIN','SUPER_ADMIN']); const n=Math.min(200,Math.max(1,Number(limit)||100)); return (await this.db.query('SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT $1',[n])).rows; }
+  @Get('admin/launch/status') async launchStatus(@Headers() h:any){
+    await this.actor(h,['ADMIN','SUPER_ADMIN']);
+    const [db,stale,ready,riders,support,stock,payments]=await Promise.all([
+      this.db.query('SELECT now() db_time, current_database() database'),
+      this.db.query(`SELECT COUNT(*)::int count FROM orders WHERE status NOT IN ('DELIVERED','CANCELLED','REJECTED','FAILED_PAYMENT','REFUNDED') AND updated_at < now()-interval '45 minutes'`),
+      this.db.query(`SELECT COUNT(*)::int count FROM orders WHERE status='READY_FOR_PICKUP' AND NOT EXISTS (SELECT 1 FROM deliveries d WHERE d.order_id=orders.id)`),
+      this.db.query(`SELECT COUNT(*)::int total, COUNT(*) FILTER(WHERE is_online)::int online, COUNT(*) FILTER(WHERE is_online AND last_location_at < now()-interval '10 minutes')::int stale_online FROM riders`),
+      this.db.query(`SELECT COUNT(*)::int open FROM support_tickets WHERE status IN ('OPEN','IN_PROGRESS')`),
+      this.db.query(`SELECT COUNT(*)::int low_stock FROM products WHERE is_available=true AND stock_quantity-stock_reserved <= low_stock_threshold`),
+      this.db.query(`SELECT COUNT(*)::int failed_recent FROM payments WHERE status='FAILED' AND created_at >= now()-interval '24 hours'`)
+    ]);
+    const integrations=this.integrations.status();
+    const checks={database:true,integrations:Object.values(integrations).every((x:any)=>x.configured),staleOrders:Number(stale.rows[0].count)===0,unassignedReady:Number(ready.rows[0].count)===0};
+    return {ready:Object.values(checks).every(Boolean),checks,integrations,orders:{stale:Number(stale.rows[0].count),unassignedReady:Number(ready.rows[0].count)},riders:riders.rows[0],supportOpen:Number(support.rows[0].open),lowStock:Number(stock.rows[0].low_stock),failedPayments24h:Number(payments.rows[0].failed_recent),database:db.rows[0]};
+  }
+
+  @Get('admin/metrics') async metrics(@Headers() h:any){ await this.actor(h,['ADMIN','SUPER_ADMIN']); const r=await this.db.query(`SELECT (SELECT count(*) FROM users) users,(SELECT count(*) FROM merchants) merchants,(SELECT count(*) FROM products) products,(SELECT count(*) FROM orders) orders,(SELECT count(*) FROM orders WHERE status='DELIVERED') delivered,COALESCE((SELECT sum(total) FROM orders WHERE status='DELIVERED'),0) revenue`); return r.rows[0]; }
+}
+@Module({controllers:[AppController],providers:[Db,RealtimeGateway,IntegrationService]}) class AppModule{}
+
+
+async function bootstrap(){
+  const app=await NestFactory.create(AppModule,{rawBody:true,bodyParser:{json:{limit:'1mb'},urlencoded:{limit:'1mb',extended:true}}});
+  app.enableCors({origin:(origin,cb)=>{ if(!origin || API_ALLOWED_ORIGINS.length===0 || API_ALLOWED_ORIGINS.includes(origin)) return cb(null,true); return cb(new Error('CORS origin denied'),false);}, credentials:true});
+  app.setGlobalPrefix('api/v1');
+  app.use((req:any,res:any,next:any)=>{
+    const requestId=String(req.headers['x-request-id']||randomUUID());
+    req.requestId=requestId; res.setHeader('x-request-id',requestId);
+    const started=Date.now();
+    res.on('finish',()=>console.log(JSON.stringify({event:'http_request',requestId,method:req.method,path:req.originalUrl,status:res.statusCode,durationMs:Date.now()-started})));
+    next();
+  });
+  app.use((req:any,res:any,next:any)=>{ const key=String(req.ip||req.headers['x-forwarded-for']||'unknown').split(',')[0]; const now=Date.now(); const b=rateBuckets.get(key); if(!b||now-b.start>=RATE_LIMIT_WINDOW_MS){rateBuckets.set(key,{start:now,count:1}); return next();} b.count++; if(b.count>RATE_LIMIT_MAX){res.status(429).json({statusCode:429,message:'طلبات كثيرة مؤقتًا',requestId:req.requestId});return;} next(); });
+  await app.listen(Number(process.env.PORT||3000));
+  console.log(JSON.stringify({event:'server_started',version:API_VERSION,port:Number(process.env.PORT||3000),nodeEnv:process.env.NODE_ENV||'development'}));
+}
+bootstrap();  @Get('merchant/orders/:merchantId') async merchantOrders(@Param('merchantId') merchantId:string,@Headers() h:any,@Query('status') status?:string){ await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']); const p=[merchantId];let sql='SELECT o.*,u.name customer_name,u.phone customer_phone FROM orders o JOIN users u ON u.id=o.user_id WHERE o.merchant_id=$1';if(status){p.push(status);sql+=' AND o.status=$2';}sql+=' ORDER BY o.created_at DESC';return (await this.db.query(sql,p)).rows; }
   @Get('rider/tasks') async riderTasks(@Headers() h:any){ await this.actor(h,['RIDER','ADMIN','SUPER_ADMIN']); return (await this.db.query(`SELECT o.*,m.name merchant_name,m.village FROM orders o JOIN merchants m ON m.id=o.merchant_id WHERE o.status IN ('READY_FOR_PICKUP','ASSIGNED_RIDER') ORDER BY o.created_at`)).rows; }
 
   @Get('merchant/dashboard/:merchantId') async merchantDashboard(@Param('merchantId') merchantId:string,@Headers() h:any){
