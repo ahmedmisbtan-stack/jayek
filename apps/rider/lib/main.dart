@@ -1,60 +1,285 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-const primary=Color(0xFF176B4D), accent=Color(0xFFF39A3D), cream=Color(0xFFFFF8EA);
-const base=String.fromEnvironment('JAYEK_API',defaultValue:'http://10.0.2.2:3000/api/v1');
-const uid=String.fromEnvironment('JAYEK_RIDER_USER',defaultValue:'');
-const riderToken=String.fromEnvironment('JAYEK_RIDER_TOKEN',defaultValue:'');
+const primary = Color(0xFF176B4D);
+const accent = Color(0xFFF39A3D);
+const cream = Color(0xFFFFF8EA);
+const apiBase = String.fromEnvironment('JAYEK_API', defaultValue: 'http://10.0.2.2:3000/api/v1');
 
-class Api {
+void main() => runApp(const RiderApp());
+
+class RiderApi {
   String? token;
-  Future<dynamic> call(String m,String p,[Map<String,dynamic>? b]) async {
-    final h={'Content-Type':'application/json',if(token!=null)'Authorization':'Bearer $token'};
-    final u=Uri.parse(base+p);
-    late http.Response r;
-    try{
-      if(m=='GET') r=await http.get(u,headers:h).timeout(const Duration(seconds:15));
-      else if(m=='POST') r=await http.post(u,headers:h,body:jsonEncode(b??{})).timeout(const Duration(seconds:15));
-      else r=await http.patch(u,headers:h,body:jsonEncode(b??{})).timeout(const Duration(seconds:15));
-    }on TimeoutException{throw Exception('الاتصال بالخادم استغرق وقتًا طويلًا');}
-    if(r.statusCode>=400){
-      String msg='حدث خطأ';
-      try{final d=jsonDecode(r.body);msg=(d['message']??msg).toString();}catch(_){}
-      throw Exception(msg);
+  Future<dynamic> call(String method, String path, {Map<String, dynamic>? body}) async {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+    final uri = Uri.parse('$apiBase$path');
+    http.Response response;
+    try {
+      if (method == 'GET') {
+        response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 15));
+      } else if (method == 'POST') {
+        response = await http.post(uri, headers: headers, body: jsonEncode(body ?? {})).timeout(const Duration(seconds: 15));
+      } else {
+        response = await http.patch(uri, headers: headers, body: jsonEncode(body ?? {})).timeout(const Duration(seconds: 15));
+      }
+    } catch (_) {
+      throw Exception('تعذر الاتصال بالخادم');
     }
-    return r.body.isEmpty?{}:jsonDecode(r.body);
+    if (response.statusCode == 401) throw Exception('جلسة الكابتن انتهت');
+    if (response.statusCode >= 400) {
+      String message = 'حدث خطأ';
+      try {
+        final data = jsonDecode(response.body);
+        message = (data['message'] ?? message).toString();
+      } catch (_) {}
+      throw Exception(message);
+    }
+    return response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body);
   }
-  Future<dynamic> get(String p)=>call('GET',p);
-  Future<dynamic> post(String p,[Map<String,dynamic>? b])=>call('POST',p,b);
-  Future<dynamic> patch(String p,[Map<String,dynamic>? b])=>call('PATCH',p,b);
+
+  Future<dynamic> get(String path) => call('GET', path);
+  Future<dynamic> post(String path, Map<String, dynamic> body) => call('POST', path, body: body);
+  Future<dynamic> patch(String path, Map<String, dynamic> body) => call('PATCH', path, body: body);
+
+  Future<void> save() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (token == null) {
+      await prefs.remove('riderToken');
+    } else {
+      await prefs.setString('riderToken', token!);
+    }
+  }
+
+  Future<void> restore() async {
+    final prefs = await SharedPreferences.getInstance();
+    token = prefs.getString('riderToken');
+  }
 }
-void main()=>runApp(const Rider());
-class Rider extends StatefulWidget{const Rider({super.key});@override State<Rider> createState()=>_RiderState();}
-class _RiderState extends State<Rider>{
-  final api=Api();bool ready=false;
-  @override void initState(){super.initState();_restore();}
-  Future<void> _restore()async{final p=await SharedPreferences.getInstance();api.token=p.getString('riderToken');if(mounted)setState(()=>ready=true);}
-  Future<void> _save(String token)async{api.token=token;final p=await SharedPreferences.getInstance();await p.setString('riderToken',token);if(mounted)setState((){});}
-  Future<void> _logout()async{api.token=null;final p=await SharedPreferences.getInstance();await p.remove('riderToken');if(mounted)setState((){});}
-  @override Widget build(BuildContext c){if(!ready)return const MaterialApp(home:Scaffold(body:Center(child:CircularProgressIndicator())));return MaterialApp(debugShowCheckedModeBanner:false,theme:ThemeData(useMaterial3:true,scaffoldBackgroundColor:cream,colorScheme:ColorScheme.fromSeed(seedColor:primary)),home:api.token==null?RiderLogin(api:api,onDone:_save):RiderHome(api:api,onLogout:_logout));}
+
+class RiderApp extends StatefulWidget {
+  const RiderApp({super.key});
+  @override State<RiderApp> createState() => _RiderAppState();
 }
-class RiderLogin extends StatefulWidget{final Api api;final Future<void> Function(String) onDone;const RiderLogin({super.key,required this.api,required this.onDone});@override State<RiderLogin> createState()=>_RiderLoginState();}
-class _RiderLoginState extends State<RiderLogin>{final phone=TextEditingController(text:'01000000003'),code=TextEditingController();String? challenge;bool busy=false;String msg='';Future<void> request()async{setState(()=>busy=true);try{final r=await widget.api.post('/auth/request-otp',{'phone':phone.text.trim()});challenge=r['challengeId'];if(r['devCode']!=null)code.text=(r['devCode']).toString();msg='تم إرسال الرمز';}catch(e){msg=e.toString().replaceFirst('Exception: ','');}finally{if(mounted)setState(()=>busy=false);}}Future<void> verify()async{if(challenge==null){await request();return;}setState(()=>busy=true);try{final r=await widget.api.post('/auth/verify-otp',{'challengeId':challenge,'phone':phone.text.trim(),'code':code.text.trim(),'name':'كابتن جايك'});if(r['user']?['role']!='RIDER'){throw Exception('هذا الحساب ليس حساب كابتن');}await widget.onDone((r['accessToken']).toString());}catch(e){if(mounted)setState(()=>msg=e.toString().replaceFirst('Exception: ',''));}finally{if(mounted)setState(()=>busy=false);}}@override void dispose(){phone.dispose();code.dispose();super.dispose();}@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(body:Center(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:Column(children:[const Icon(Icons.two_wheeler,size:76,color:primary),const Text('جايك — الكابتن',style:TextStyle(fontSize:28,fontWeight:FontWeight.w900,color:primary)),const SizedBox(height:24),TextField(controller:phone,keyboardType:TextInputType.phone,decoration:const InputDecoration(labelText:'رقم الموبايل',border:OutlineInputBorder())),const SizedBox(height:12),TextField(controller:code,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'رمز التحقق',border:OutlineInputBorder())),const SizedBox(height:16),SizedBox(width:double.infinity,height:52,child:FilledButton(onPressed:busy?null:verify,style:FilledButton.styleFrom(backgroundColor:primary),child:Text(challenge==null?'إرسال الرمز':'دخول'))),if(challenge!=null)TextButton(onPressed:busy?null:request,child:const Text('إرسال الرمز مرة أخرى')),if(msg.isNotEmpty)Padding(padding:const EdgeInsets.only(top:10),child:Text(msg))])))));}
-class RiderHome extends StatefulWidget{final Api api;final VoidCallback onLogout;const RiderHome({super.key,required this.api,required this.onLogout});@override State<RiderHome> createState()=>_RiderHomeState();}
-class _RiderHomeState extends State<RiderHome>{
- List tasks=[]; List activeTasks=[]; Map<String,dynamic>? me; Map<String,dynamic>? earnings; bool online=false; Timer? timer;
- @override void initState(){super.initState();load();}
- @override void dispose(){timer?.cancel();super.dispose();}
- Future<void> load()async{try{final a=await widget.api.get('/rider/tasks/available');final active=await widget.api.get('/rider/tasks/active');final r=await widget.api.get('/rider/me');final e=await widget.api.get('/rider/earnings?days=30');if(mounted)setState((){tasks=List.from(a);activeTasks=List.from(active);me=Map<String,dynamic>.from(r??{});earnings=Map<String,dynamic>.from(e??{});online=me?['is_online']==true;});}catch(_){}}
- Future<void> toggle(bool v)async{await widget.api.patch('/rider/online',{'online':v});if(mounted)setState(()=>online=v);if(v){timer?.cancel();timer=Timer.periodic(const Duration(seconds:15),(_)=>load());}else{timer?.cancel();}}
- Future<void> accept(String id)async{await widget.api.post('/rider/tasks/$id/accept');await load();}
- Future<void> status(String id,String s)async{String? proof;if(s=='DELIVERED'){proof=await showDialog<String>(context:context,builder:(c)=>_ProofDialog());if(proof==null)return;}await widget.api.patch('/rider/orders/$id/status',{'status':s,if(proof!=null)'proofUrl':proof});await load();}
- String ar(String s)=>{'ASSIGNED_RIDER':'مُسند للكابتن','PICKED_UP':'تم الاستلام','ON_THE_WAY':'في الطريق','DELIVERED':'تم التسليم'}[s]??s;
- Widget taskCard(dynamic x,{bool active=false}){final status=x['status'] as String;return Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Row(children:[Expanded(child:Text('${x['merchant_name']}',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900))),Text('${x['total']} ج.م',style:const TextStyle(fontWeight:FontWeight.bold))]),Text('${x['village']} • ${ar(status)}'),if(x['assigned_at']!=null)Text('إسناد: ${x['assigned_at']}'),const SizedBox(height:10),if(!active&&status=='READY_FOR_PICKUP')SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:()=>accept(x['id']),style:FilledButton.styleFrom(backgroundColor:primary),icon:const Icon(Icons.check),label:const Text('قبول المهمة')))else if(active)Wrap(spacing:8,runSpacing:8,children:[if(status=='ASSIGNED_RIDER')FilledButton(onPressed:()=>status==status?this.status(x['id'],'PICKED_UP'):null,child:const Text('استلمت الطلب')),if(status=='PICKED_UP')FilledButton(onPressed:()=>this.status(x['id'],'ON_THE_WAY'),child:const Text('بدأت التوصيل')),if(status=='ON_THE_WAY')FilledButton(onPressed:()=>this.status(x['id'],'DELIVERED'),style:FilledButton.styleFrom(backgroundColor:primary),child:const Text('تم التسليم'))])])));}
- @override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(backgroundColor:primary,foregroundColor:Colors.white,title:const Text('جايك — الكابتن'),actions:[IconButton(onPressed:load,icon:const Icon(Icons.refresh)),IconButton(onPressed:widget.onLogout,icon:const Icon(Icons.logout))]),body:RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[Card(child:ListTile(leading:CircleAvatar(backgroundColor:online?primary:Colors.grey,child:const Icon(Icons.two_wheeler,color:Colors.white)),title:Text(online?'متصل ومستعد للطلبات':'غير متصل',style:const TextStyle(fontWeight:FontWeight.w900)),subtitle:Text(me?['name']??'كابتن جايك'),trailing:Switch(value:online,onChanged:toggle))),const SizedBox(height:10),if(earnings!=null)Card(child:ListTile(title:const Text('ملخص آخر 30 يومًا',style:TextStyle(fontWeight:FontWeight.bold)),subtitle:Text('التسليمات: ${earnings!['deliveryCount']} • رسوم التوصيل: ${earnings!['totalDeliveryFees']} ج.م'))),const SizedBox(height:12),if(activeTasks.isNotEmpty)const Text('المهمة الحالية',style:TextStyle(fontSize:22,fontWeight:FontWeight.w900)),...activeTasks.map((x)=>taskCard(x,active:true)),const SizedBox(height:10),const Text('المهام المتاحة',style:TextStyle(fontSize:22,fontWeight:FontWeight.w900)),const SizedBox(height:8),...tasks.map((x)=>taskCard(x)),if(tasks.isEmpty&&activeTasks.isEmpty)const Padding(padding:EdgeInsets.all(36),child:Center(child:Text('لا توجد مهام متاحة حاليًا')))]))));}
+
+class _RiderAppState extends State<RiderApp> {
+  final api = RiderApi();
+  bool loading = true;
+  @override void initState() { super.initState(); restore(); }
+  Future<void> restore() async { await api.restore(); if (mounted) setState(() => loading = false); }
+  Future<void> logout() async { api.token = null; await api.save(); if (mounted) setState(() {}); }
+  @override Widget build(BuildContext context) {
+    if (loading) return const MaterialApp(home: Scaffold(body: Center(child: CircularProgressIndicator())));
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'جايك كابتن',
+      theme: ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: primary), scaffoldBackgroundColor: cream),
+      home: api.token == null ? RiderLogin(api: api, onDone: () => setState(() {})) : RiderHome(api: api, onLogout: logout),
+    );
+  }
 }
-class _ProofDialog extends StatefulWidget{ @override State<_ProofDialog> createState()=>_ProofDialogState(); }
-class _ProofDialogState extends State<_ProofDialog>{final c=TextEditingController();@override Widget build(BuildContext context)=>AlertDialog(title:const Text('إثبات التسليم'),content:TextField(controller:c,decoration:const InputDecoration(labelText:'رابط صورة/إثبات التسليم',hintText:'https://...'),keyboardType:TextInputType.url),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('إلغاء')),FilledButton(onPressed:()=>Navigator.pop(context,c.text.trim().isEmpty?null:c.text.trim()),child:const Text('تأكيد'))]);}
+
+class RiderLogin extends StatefulWidget {
+  final RiderApi api;
+  final VoidCallback onDone;
+  const RiderLogin({super.key, required this.api, required this.onDone});
+  @override State<RiderLogin> createState() => _RiderLoginState();
+}
+
+class _RiderLoginState extends State<RiderLogin> {
+  final phone = TextEditingController(text: '01000000003');
+  final code = TextEditingController(text: '1234');
+  String? challenge;
+  String message = '';
+  bool busy = false;
+
+  Future<void> request() async {
+    setState(() => busy = true);
+    try {
+      final data = await widget.api.post('/auth/request-otp', {'phone': phone.text.trim()});
+      challenge = data['challengeId']?.toString();
+      if (data['devCode'] != null) code.text = data['devCode'].toString();
+      message = 'تم إرسال الرمز';
+    } catch (e) {
+      message = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> verify() async {
+    if (challenge == null) { await request(); return; }
+    setState(() => busy = true);
+    try {
+      final data = await widget.api.post('/auth/verify-otp', {
+        'challengeId': challenge, 'phone': phone.text.trim(), 'code': code.text.trim(), 'name': 'كابتن جايك',
+      });
+      final user = data['user'];
+      if (user is! Map || user['role'] != 'RIDER') throw Exception('هذا الحساب ليس حساب كابتن');
+      widget.api.token = data['accessToken']?.toString();
+      await widget.api.save();
+      widget.onDone();
+    } catch (e) {
+      message = e.toString().replaceFirst('Exception: ', '');
+      if (mounted) setState(() {});
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override void dispose() { phone.dispose(); code.dispose(); super.dispose(); }
+
+  @override Widget build(BuildContext context) => Directionality(
+    textDirection: TextDirection.rtl,
+    child: Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(children: [
+            const Icon(Icons.delivery_dining, size: 90, color: primary),
+            const Text('جايك كابتن', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: primary)),
+            const SizedBox(height: 24),
+            TextField(controller: phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'رقم الكابتن', border: OutlineInputBorder())),
+            const SizedBox(height: 12),
+            TextField(controller: code, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'رمز التحقق', border: OutlineInputBorder())),
+            const SizedBox(height: 14),
+            SizedBox(width: double.infinity, height: 52, child: FilledButton(onPressed: busy ? null : verify, style: FilledButton.styleFrom(backgroundColor: primary), child: Text(challenge == null ? 'إرسال الرمز' : 'دخول'))),
+            if (challenge != null) TextButton(onPressed: busy ? null : request, child: const Text('إرسال الرمز مرة أخرى')),
+            if (message.isNotEmpty) Text(message),
+          ]),
+        ),
+      ),
+    ),
+  );
+}
+
+class RiderHome extends StatefulWidget {
+  final RiderApi api;
+  final VoidCallback onLogout;
+  const RiderHome({super.key, required this.api, required this.onLogout});
+  @override State<RiderHome> createState() => _RiderHomeState();
+}
+
+class _RiderHomeState extends State<RiderHome> {
+  List available = [];
+  List active = [];
+  Map<String, dynamic> me = {};
+  Map<String, dynamic> earnings = {};
+  bool online = false;
+  bool loading = true;
+
+  @override void initState() { super.initState(); load(); }
+
+  Future<void> load() async {
+    try {
+      final values = await Future.wait([
+        widget.api.get('/rider/me'),
+        widget.api.get('/rider/tasks/available'),
+        widget.api.get('/rider/tasks/active'),
+        widget.api.get('/rider/earnings?days=30'),
+      ]);
+      me = Map<String, dynamic>.from(values[0] as Map? ?? {});
+      available = values[1] as List? ?? [];
+      active = values[2] as List? ?? [];
+      earnings = Map<String, dynamic>.from(values[3] as Map? ?? {});
+      online = me['is_online'] == true;
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))));
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> setOnline(bool value) async {
+    try { await widget.api.patch('/rider/online', {'online': value}); setState(() => online = value); }
+    catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()))); }
+  }
+
+  Future<void> accept(String id) async {
+    try { await widget.api.post('/rider/tasks/$id/accept', {}); await load(); }
+    catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()))); }
+  }
+
+  Future<void> status(String id, String value) async {
+    try { await widget.api.patch('/rider/orders/$id/status', {'status': value}); await load(); }
+    catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()))); }
+  }
+
+  Future<void> sendDemoLocation() async {
+    try {
+      await widget.api.patch('/rider/location', {'latitude': 29.6465, 'longitude': 31.3185, 'accuracy': 30});
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث موقع الكابتن — وضع التجربة')));
+      await load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  String label(String status) {
+    const values = {'READY_FOR_PICKUP': 'جاهز للاستلام', 'ASSIGNED_RIDER': 'مُسند للكابتن', 'PICKED_UP': 'تم الاستلام', 'ON_THE_WAY': 'في الطريق', 'DELIVERED': 'تم التسليم'};
+    return values[status] ?? status;
+  }
+
+  @override Widget build(BuildContext context) {
+    if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('جايك كابتن', style: TextStyle(fontWeight: FontWeight.w900, color: primary)),
+          actions: [
+            IconButton(onPressed: sendDemoLocation, icon: const Icon(Icons.my_location, color: primary)),
+            IconButton(onPressed: widget.onLogout, icon: const Icon(Icons.logout)),
+          ],
+        ),
+        body: RefreshIndicator(
+          onRefresh: load,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Card(child: SwitchListTile(value: online, onChanged: setOnline, title: const Text('متاح لاستقبال الطلبات', style: TextStyle(fontWeight: FontWeight.w800)), subtitle: Text(online ? 'أنت أونلاين' : 'أنت أوفلاين'), secondary: const Icon(Icons.wifi_tethering, color: primary))),
+              Card(child: ListTile(leading: const Icon(Icons.payments_outlined, color: primary), title: const Text('أرباح آخر 30 يوم'), subtitle: Text('${earnings['totalDeliveryFees'] ?? 0} جنيه • ${earnings['deliveryCount'] ?? 0} توصيل'))),
+              const SizedBox(height: 12),
+              const Text('طلبات متاحة', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+              if (available.isEmpty) const Padding(padding: EdgeInsets.all(20), child: Center(child: Text('لا توجد مهام متاحة حاليًا'))),
+              for (final raw in available) _taskCard(Map<String, dynamic>.from(raw), available: true),
+              const SizedBox(height: 16),
+              const Text('مهامي الحالية', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+              if (active.isEmpty) const Padding(padding: EdgeInsets.all(20), child: Center(child: Text('لا توجد مهام نشطة'))),
+              for (final raw in active) _taskCard(Map<String, dynamic>.from(raw), available: false),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _taskCard(Map<String, dynamic> task, {required bool available}) {
+    final id = task['id'].toString();
+    final statusValue = task['status'].toString();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('${task['merchant_name'] ?? 'متجر'} • ${task['village'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 5),
+          Text('الإجمالي: ${task['total'] ?? 0} جنيه • التوصيل: ${task['delivery_fee'] ?? 0} جنيه'),
+          Text('الحالة: ${label(statusValue)}'),
+          const SizedBox(height: 8),
+          if (available)
+            SizedBox(width: double.infinity, child: FilledButton(onPressed: () => accept(id), style: FilledButton.styleFrom(backgroundColor: primary), child: const Text('استلام المهمة')))
+          else
+            Wrap(spacing: 8, children: [
+              if (statusValue == 'ASSIGNED_RIDER') FilledButton(onPressed: () => status(id, 'PICKED_UP'), style: FilledButton.styleFrom(backgroundColor: primary), child: const Text('استلمت الطلب')),
+              if (statusValue == 'PICKED_UP') FilledButton(onPressed: () => status(id, 'ON_THE_WAY'), style: FilledButton.styleFrom(backgroundColor: primary), child: const Text('خرجت للتوصيل')),
+              if (statusValue == 'ON_THE_WAY') FilledButton(onPressed: () => status(id, 'DELIVERED'), style: FilledButton.styleFrom(backgroundColor: primary), child: const Text('تم التسليم')),
+            ]),
+        ]),
+      ),
+    );
+  }
+}
