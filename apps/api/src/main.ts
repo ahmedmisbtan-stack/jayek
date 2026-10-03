@@ -29,6 +29,11 @@ function verifyToken(token:string){
   }catch{return null;}
 }
 const API_ALLOWED_ORIGINS = String(process.env.CORS_ORIGINS || '').split(',').map(x=>x.trim()).filter(Boolean);
+const isProduction = process.env.NODE_ENV === 'production';
+if (isProduction && JWT_SECRET.length < 32) throw new Error('JWT_SECRET must be at least 32 characters in production');
+function finiteNumber(value:any){ const n=Number(value); return Number.isFinite(n) ? n : null; }
+function validLatLon(lat:any, lon:any){ const a=finiteNumber(lat), b=finiteNumber(lon); return a!==null && b!==null && a>=-90 && a<=90 && b>=-180 && b<=180; }
+function boundedText(value:any, max:number){ const s=String(value ?? '').trim(); return s.length<=max ? s : s.slice(0,max); }
 const BRAND = { name:'جايك', latin:'JAYEK', tagline:'طلبك جايك .. كل اللي محتاجه لحد بابك', colors:{primary:'#176B4D',secondary:'#65B87A',accent:'#F39A3D',background:'#FFF8EA',text:'#202522'} };
 const SERVICES = ['FOOD','GROCERY','PHARMACY','STORES','VEGETABLES','BUTCHERY','BAKERY'];
 const TRANSITIONS = ORDER_TRANSITIONS;
@@ -48,7 +53,7 @@ const NOTIFICATION_COPY:any = {
   PAYMENT_FAILED: ['فشل الدفع','لم تتم عملية الدفع بنجاح.']
 };
 
-@WebSocketGateway({ namespace: '/realtime', cors: { origin: true } })
+@WebSocketGateway({ namespace: '/realtime', cors: { origin: process.env.CORS_ORIGINS ? API_ALLOWED_ORIGINS : (!isProduction) } })
 class RealtimeGateway {
   @WebSocketServer() server!: Server;
   constructor(private db:Db){
@@ -90,7 +95,7 @@ class AppController {
   @Get('config') config(){ return {brand:BRAND,locale:'ar-EG',rtl:true,services:SERVICES,defaultVillage:'الديسمي'}; }
 
   @Post('auth/request-otp') async requestOtp(@Body() b:any){
-    const phone=String(b?.phone||'');
+    const phone=String(b?.phone||'').trim();
     if(!/^01[0125][0-9]{8}$/.test(phone)) throw new BadRequestException('رقم الهاتف غير صحيح');
     const now=Date.now(), current=this.otpAttempts.get(phone);
     if(!current || now-current.start>=15*60*1000) this.otpAttempts.set(phone,{start:now,count:1});
@@ -207,12 +212,12 @@ class AppController {
   @Post('orders') async createOrder(@Headers() h:any,@Body() b:any){
     const userId=this.userId(h); const key=h['idempotency-key']; if(!key) throw new BadRequestException('Idempotency-Key مطلوب');
     const existing=await this.db.query('SELECT * FROM orders WHERE idempotency_key=$1',[key]); if(existing.rowCount) return this.orderById(existing.rows[0].id);
-    if(!b?.merchantId||!Array.isArray(b.items)||!b.items.length) throw new BadRequestException('السلة غير صالحة');
+    if(!b?.merchantId||!Array.isArray(b.items)||!b.items.length||b.items.length>50) throw new BadRequestException('السلة غير صالحة');
     const result=await this.db.tx(async c=>{
       const merchant=(await c.query('SELECT * FROM merchants WHERE id=$1 AND is_active=true FOR SHARE',[b.merchantId])).rows[0]; if(!merchant) throw new BadRequestException('المتجر غير متاح');
-      const ids=b.items.map((x:any)=>x.productId); if(ids.length!==new Set(ids).size) throw new BadRequestException('لا يمكن تكرار المنتج داخل الطلب'); const ps=(await c.query('SELECT * FROM products WHERE id=ANY($1::uuid[]) AND merchant_id=$2 AND is_available=true FOR UPDATE',[ids,b.merchantId])).rows; const map=new Map(ps.map((p:any)=>[p.id,p]));
+      const ids=b.items.map((x:any)=>x.productId); if(ids.some((id:any)=>typeof id!=='string'||id.length>80)||ids.length!==new Set(ids).size) throw new BadRequestException('السلة غير صالحة'); const ps=(await c.query('SELECT * FROM products WHERE id=ANY($1::uuid[]) AND merchant_id=$2 AND is_available=true FOR UPDATE',[ids,b.merchantId])).rows; const map=new Map(ps.map((p:any)=>[p.id,p]));
       if(ps.length!==new Set(ids).size) throw new BadRequestException('يوجد منتج غير متاح');
-      let subtotal=0; const items=[]; for(const i of b.items){const p:any=map.get(i.productId); const qty=Math.max(1,Math.floor(Number(i.quantity||1))); subtotal+=Number(p.price)*qty; items.push({p,qty});}
+      let subtotal=0; const items=[]; for(const i of b.items){const p:any=map.get(i.productId); const qty=Math.floor(Number(i.quantity||1)); if(!Number.isFinite(qty)||qty<1||qty>100) throw new BadRequestException('كمية المنتج غير صالحة'); subtotal+=Number(p.price)*qty; if(subtotal>1000000) throw new BadRequestException('قيمة الطلب كبيرة جدًا'); items.push({p,qty});}
       let discount=0;
       let coupon:any=null;
       if(b.couponCode){
@@ -228,7 +233,7 @@ class AppController {
       }
       const address=b.addressId ? (await c.query('SELECT * FROM addresses WHERE id=$1 AND user_id=$2 FOR SHARE',[b.addressId,userId])).rows[0] : null;
       if(b.addressId && !address) throw new BadRequestException('العنوان غير صالح');
-      if(!address?.latitude || !address?.longitude) throw new BadRequestException('العنوان يحتاج موقعًا جغرافيًا');
+      if(!address || !validLatLon(address.latitude,address.longitude)) throw new BadRequestException('العنوان يحتاج موقعًا جغرافيًا صحيحًا');
       const zones=(await c.query('SELECT * FROM delivery_zones WHERE is_active=true')).rows;
       const zone=zones.map((z:any)=>({...z,distanceKm:distanceKm(Number(address.latitude),Number(address.longitude),Number(z.center_latitude),Number(z.center_longitude))}))
         .filter((z:any)=>z.distanceKm<=Number(z.radius_km)).sort((a:any,b:any)=>a.distanceKm-b.distanceKm)[0];
@@ -440,8 +445,8 @@ class AppController {
     const r=await this.db.query(`UPDATE deliveries d SET proof_url=$1 FROM riders r WHERE d.order_id=$2 AND d.rider_id=r.id AND r.user_id=$3 RETURNING d.*`,[b.proofUrl,orderId,this.userId(h)]);
     if(!r.rowCount) throw new NotFoundException('التسليم غير موجود'); return r.rows[0];
   }
-  @Post('reviews') async review(@Headers() h:any,@Body() b:any){ const userId=this.userId(h); if(!b?.orderId||!Number.isInteger(Number(b.rating))||Number(b.rating)<1||Number(b.rating)>5)throw new BadRequestException('التقييم غير صالح'); return this.db.tx(async c=>{const o=(await c.query(`SELECT * FROM orders WHERE id=$1 AND user_id=$2 AND status='DELIVERED'`,[b.orderId,userId])).rows[0];if(!o)throw new BadRequestException('لا يمكن تقييم هذا الطلب');const r=(await c.query('INSERT INTO reviews(order_id,user_id,merchant_id,rating,comment) VALUES($1,$2,$3,$4,$5) RETURNING *',[b.orderId,userId,o.merchant_id,b.rating,b.comment||null])).rows[0];await c.query(`UPDATE merchants SET rating=ROUND(((rating*GREATEST((SELECT count(*) FROM reviews WHERE merchant_id=$1)-1,0))+ $2)/(SELECT count(*) FROM reviews WHERE merchant_id=$1),1) WHERE id=$1`,[o.merchant_id,b.rating]);return r;}); }
-  @Post('support/tickets') async support(@Headers() h:any,@Body() b:any){if(!b?.subject||!b?.message)throw new BadRequestException('بيانات البلاغ ناقصة');const t=(await this.db.query('INSERT INTO support_tickets(user_id,order_id,subject,message,priority) VALUES($1,$2,$3,$4,$5) RETURNING *',[this.userId(h),b.orderId||null,b.subject,b.message,b.priority||'NORMAL'])).rows[0]; await this.notifyUser(this.userId(h),'SUPPORT','تم فتح بلاغ الدعم',`رقم البلاغ ${t.id} تم استلامه.`,{ticketId:t.id},`SUPPORT_CREATED:${t.id}`); return t;}
+  @Post('reviews') async review(@Headers() h:any,@Body() b:any){ const userId=this.userId(h); if(String(b?.comment||'').length>2000) throw new BadRequestException('التعليق طويل جدًا'); if(!b?.orderId||!Number.isInteger(Number(b.rating))||Number(b.rating)<1||Number(b.rating)>5)throw new BadRequestException('التقييم غير صالح'); return this.db.tx(async c=>{const o=(await c.query(`SELECT * FROM orders WHERE id=$1 AND user_id=$2 AND status='DELIVERED'`,[b.orderId,userId])).rows[0];if(!o)throw new BadRequestException('لا يمكن تقييم هذا الطلب');const r=(await c.query('INSERT INTO reviews(order_id,user_id,merchant_id,rating,comment) VALUES($1,$2,$3,$4,$5) RETURNING *',[b.orderId,userId,o.merchant_id,b.rating,b.comment||null])).rows[0];await c.query(`UPDATE merchants SET rating=ROUND(((rating*GREATEST((SELECT count(*) FROM reviews WHERE merchant_id=$1)-1,0))+ $2)/(SELECT count(*) FROM reviews WHERE merchant_id=$1),1) WHERE id=$1`,[o.merchant_id,b.rating]);return r;}); }
+  @Post('support/tickets') async support(@Headers() h:any,@Body() b:any){if(!b?.subject||!b?.message||String(b.subject).length>180||String(b.message).length>5000)throw new BadRequestException('بيانات البلاغ ناقصة أو طويلة');const t=(await this.db.query('INSERT INTO support_tickets(user_id,order_id,subject,message,priority) VALUES($1,$2,$3,$4,$5) RETURNING *',[this.userId(h),b.orderId||null,b.subject,b.message,b.priority||'NORMAL'])).rows[0]; await this.notifyUser(this.userId(h),'SUPPORT','تم فتح بلاغ الدعم',`رقم البلاغ ${t.id} تم استلامه.`,{ticketId:t.id},`SUPPORT_CREATED:${t.id}`); return t;}
   @Get('support/tickets') async myTickets(@Headers() h:any){return (await this.db.query('SELECT * FROM support_tickets WHERE user_id=$1 ORDER BY created_at DESC',[this.userId(h)])).rows;}
   @Get('admin/support/tickets') async adminTickets(@Headers() h:any,@Query('status') status?:string){await this.actor(h,['ADMIN','SUPER_ADMIN']);const p:any[]=[];let sql='SELECT s.*,u.name user_name,u.phone FROM support_tickets s JOIN users u ON u.id=s.user_id';if(status){p.push(status);sql+=' WHERE s.status=$1';}sql+=' ORDER BY s.created_at DESC LIMIT 200';return (await this.db.query(sql,p)).rows;}
   @Patch('admin/support/tickets/:id') async updateTicket(@Param('id') id:string,@Headers() h:any,@Body() b:any){await this.actor(h,['ADMIN','SUPER_ADMIN']);if(!['OPEN','IN_PROGRESS','RESOLVED','CLOSED'].includes(b?.status))throw new BadRequestException('حالة غير صالحة');const r=await this.db.query('UPDATE support_tickets SET status=$1,updated_at=now() WHERE id=$2 RETURNING *',[b.status,id]);if(!r.rowCount)throw new NotFoundException('البلاغ غير موجود');await this.notifyUser(r.rows[0].user_id,'SUPPORT','تحديث على بلاغ الدعم',`حالة البلاغ أصبحت ${b.status}.`,{ticketId:id,status:b.status},`SUPPORT_STATUS:${id}:${b.status}`);return r.rows[0];}
@@ -556,7 +561,7 @@ class AppController {
 
 async function bootstrap(){
   const app=await NestFactory.create(AppModule,{rawBody:true});
-  app.enableCors({origin:(origin,cb)=>{ if(!origin || API_ALLOWED_ORIGINS.length===0 || API_ALLOWED_ORIGINS.includes(origin)) return cb(null,true); return cb(new Error('CORS origin denied'),false);}, credentials:true});
+  app.enableCors({origin:(origin,cb)=>{ if(!origin) return cb(null,true); if(API_ALLOWED_ORIGINS.includes(origin)) return cb(null,true); if(!isProduction && API_ALLOWED_ORIGINS.length===0) return cb(null,true); return cb(new Error('CORS origin denied'),false);}, credentials:true});
   app.setGlobalPrefix('api/v1');
   app.use((req:any,res:any,next:any)=>{
     const requestId=String(req.headers['x-request-id']||randomUUID());
