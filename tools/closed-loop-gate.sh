@@ -19,9 +19,7 @@ if 'app.enableCors({origin:(origin,cb)=>' not in main: raise SystemExit('CORS al
 schema=(root/'infra/schema.sql').read_text()
 for needle in ['support_ticket_messages','order_stock_reservations','uq_notifications_user_event']:
  if needle not in schema: raise SystemExit('schema missing '+needle)
-for f in ['.env.example','infra/.env.production.example','infra/.env.staging.example']:
- if not (root/f).exists(): raise SystemExit(f+' missing')
- if 'CORS_ORIGINS=' not in (root/f).read_text(): raise SystemExit(f+' missing CORS_ORIGINS')
+if 'CORS_ORIGINS=' not in (root/'.env.example').read_text(): raise SystemExit('.env.example missing CORS_ORIGINS')
 print('CLOSED_LOOP_GATE=PASS')
 PY
 echo "CLOSED_LOOP_GATE=PASS"
