@@ -576,7 +576,7 @@ async function bootstrap(){
     res.on('finish',()=>console.log(JSON.stringify({event:'http_request',requestId,method:req.method,path:req.originalUrl,status:res.statusCode,durationMs:Date.now()-started})));
     next();
   });
-  app.use((req:any,res:any,next:any)=>{ const key=String(req.ip||req.headers['x-forwarded-for']||'unknown').split(',')[0]; const now=Date.now(); const b=rateBuckets.get(key); if(!b||now-b.start>=RATE_LIMIT_WINDOW_MS){rateBuckets.set(key,{start:now,count:1}); return next();} b.count++; if(b.count>RATE_LIMIT_MAX){res.status(429).json({statusCode:429,message:'طلبات كثيرة مؤقتًا',requestId:req.requestId});return;} next(); });
+  app.use((req:any,res:any,next:any)=>{ if(req.path==='/api/v1/health'||req.path==='/api/v1/health/ready') return next(); const key=String(req.ip||req.headers['x-forwarded-for']||'unknown').split(',')[0]; const now=Date.now(); const b=rateBuckets.get(key); if(!b||now-b.start>=RATE_LIMIT_WINDOW_MS){rateBuckets.set(key,{start:now,count:1}); return next();} b.count++; if(b.count>RATE_LIMIT_MAX){res.status(429).json({statusCode:429,message:'طلبات كثيرة مؤقتًا',requestId:req.requestId});return;} next(); });
   await app.listen(Number(process.env.PORT||3000));
   console.log(JSON.stringify({event:'server_started',version:API_VERSION,port:Number(process.env.PORT||3000),nodeEnv:process.env.NODE_ENV||'development'}));
 }
