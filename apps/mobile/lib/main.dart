@@ -9,37 +9,37 @@ const primary=Color(0xFF176B4D), secondary=Color(0xFF65B87A), accent=Color(0xFFF
 const apiBase=String.fromEnvironment('JAYEK_API',defaultValue:'http://10.0.2.2:3000/api/v1');
 
 class Api{
-  String? token;
-  String? userId;
-  String? refreshToken;
-  Future<dynamic> call(String method,String path,[Map<String,dynamic>? body,String? key])async{
-    final h={'Content-Type':'application/json',if(token!=null)'Authorization':'Bearer $token',if(key!=null)'Idempotency-Key':key};
-    final u=Uri.parse(apiBase+path);
-    try{
-      late http.Response r;
-      if(method=='GET'){r=await http.get(u,headers:h).timeout(const Duration(seconds:15));}
-      else if(method=='POST'){r=await http.post(u,headers:h,body:jsonEncode(body??{})).timeout(const Duration(seconds:15));}
-      else if(method=='PATCH'){r=await http.patch(u,headers:h,body:jsonEncode(body??{})).timeout(const Duration(seconds:15));}
-       else {r=await http.delete(u,headers:h).timeout(const Duration(seconds:15));}
-      if(r.statusCode==401 && refreshToken!=null && !path.startsWith('/auth/')){
-        final ok=await refresh();
-        if(ok)return await call(method,path,body,key);
-      }
-      if(r.statusCode>=400){
-        String message='حدث خطأ في الاتصال';
-        try{final d=jsonDecode(r.body);message=(d['message']??message).toString();}catch(_){}
-        throw Exception(message);
-      }
-      return r.body.isEmpty?{}:jsonDecode(r.body);
-    }on TimeoutException{throw Exception('الاتصال بالخادم استغرق وقتًا طويلًا');}
+  String? token; String? userId; String? refreshToken;
+  bool get demoMode => true;
+  final List<Map<String,dynamic>> _addresses=[{'id':'addr-1','label':'البيت','village':'الديسمي','details':'العنوان التجريبي'}];
+  final List<Map<String,dynamic>> _notifications=[{'id':'n-1','title':'أهلًا بيك في جايك','body':'التطبيق يعمل الآن بوضع الاختبار المحلي.'}];
+  final List<Map<String,dynamic>> _orders=[];
+  final List<Map<String,dynamic>> _merchants=[{'id':'m-1','name':'بقالة الديسمي','rating':4.8,'delivery_minutes':25,'delivery_fee':10,'village':'الديسمي'},{'id':'m-2','name':'مطعم جايك','rating':4.6,'delivery_minutes':30,'delivery_fee':12,'village':'الديسمي'}];
+  final Map<String,List<Map<String,dynamic>>> _products={'m-1':[{'id':'p-1','merchant_id':'m-1','name':'مياه معدنية','price':10,'available':true},{'id':'p-2','merchant_id':'m-1','name':'عصير مانجو','price':25,'available':true},{'id':'p-3','merchant_id':'m-1','name':'خبز بلدي','price':8,'available':true}],'m-2':[{'id':'p-4','merchant_id':'m-2','name':'كشري','price':45,'available':true},{'id':'p-5','merchant_id':'m-2','name':'بطاطس','price':30,'available':true},{'id':'p-6','merchant_id':'m-2','name':'ساندوتش كبدة','price':40,'available':true}]};
+  Future<dynamic> call(String method,String path,[Map<String,dynamic>? body,String? key])async{if(demoMode)return _demo(method,path,body);throw Exception('الوضع المتصل غير مفعّل في نسخة الاختبار');}
+  Future<dynamic> _demo(String method,String path,Map<String,dynamic>? body)async{
+    await Future<void>.delayed(const Duration(milliseconds:120));
+    if(path=='/auth/request-otp')return {'challengeId':'demo-challenge','devCode':'123456'};
+    if(path=='/auth/verify-otp'){userId='demo-user';token='demo-token';refreshToken='demo-refresh';return {'accessToken':token,'refreshToken':refreshToken,'user':{'id':userId}};}
+    if(path=='/auth/refresh')return {'accessToken':'demo-token','refreshToken':'demo-refresh'};
+    if(path.startsWith('/home'))return {'village':'الديسمي','merchants':_merchants};
+    if(path.startsWith('/merchants/')){final id=path.split('/').last;return {'merchant':_merchants.firstWhere((m)=>m['id']==id,orElse:()=>_merchants.first),'products':_products[id]??[]};}
+    if(path.startsWith('/merchants?'))return _merchants;
+    if(path.startsWith('/search?')){final q=Uri.decodeQueryComponent(Uri.parse('http://demo$path').queryParameters['q']??'').toLowerCase();final ms=_merchants.where((m)=>m['name'].toString().toLowerCase().contains(q)).toList();final ps=_products.values.expand((x)=>x).where((p)=>p['name'].toString().toLowerCase().contains(q)).toList();return {'merchants':ms,'products':ps};}
+    if(path=='/addresses')return _addresses;
+    if(path.startsWith('/coupons/validate'))return {'discount':0};
+    if(path=='/orders'&&method=='POST'){final id='demo-order-\${_orders.length+1}';final order={'id':id,'merchant_name':'بقالة الديسمي','status':'CONFIRMED','total':45,'created_at':DateTime.now().toIso8601String()};_orders.insert(0,order);return order;}
+    if(path=='/orders'&&method=='GET')return _orders;
+    if(path.startsWith('/tracking/')){final id=path.split('/').last;return {'id':id,'status':_orders.any((o)=>o['id']==id)?_orders.firstWhere((o)=>o['id']==id)['status']:'DELIVERED','history':[{'status':'CREATED','created_at':'الآن'},{'status':'CONFIRMED','created_at':'الآن'}]};}
+    if(path=='/notifications')return _notifications;
+    if(path.startsWith('/notifications/')&&method=='PATCH')return {'ok':true};
+    if(path=='/support/tickets'&&method=='POST')return {'id':'ticket-demo'};
+    if(path=='/favorites')return _merchants.take(1).toList();
+    if(path.startsWith('/orders/')&&path.endsWith('/reorder'))return {'items':[{'product_id':'p-1','quantity':1}]};
+    if(path=='/reviews'&&method=='POST')return {'ok':true};
+    return <String,dynamic>{};
   }
-  Future<bool> refresh()async{
-    try{
-      final r=await post('/auth/refresh',{'refreshToken':refreshToken});
-      token=r['accessToken'];refreshToken=r['refreshToken'];
-      return true;
-    }catch(_){token=null;refreshToken=null;return false;}
-  }
+  Future<bool> refresh()async{token='demo-token';refreshToken='demo-refresh';return true;}
   Future<dynamic> get(String p)=>call('GET',p);
   Future<dynamic> post(String p,Map<String,dynamic> b,{String? key})=>call('POST',p,b,key);
   Future<dynamic> patch(String p,Map<String,dynamic> b)=>call('PATCH',p,b);
