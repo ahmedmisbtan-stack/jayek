@@ -120,7 +120,7 @@ export class IntegrationService {
       ['PUSH_PROVIDER=http',String(process.env.PUSH_PROVIDER||'').toLowerCase()==='http' && Boolean(process.env.PUSH_HTTP_URL && process.env.PUSH_HTTP_AUTH)],
       ['MAP_PROVIDER=http',String(process.env.MAP_PROVIDER||'').toLowerCase()==='http' && Boolean(process.env.MAPS_ROUTE_URL)],
       ['STORAGE_PROVIDER=s3',String(process.env.STORAGE_PROVIDER||'').toLowerCase()==='s3' && Boolean(process.env.STORAGE_UPLOAD_URL && process.env.STORAGE_PUBLIC_BASE_URL)],
-      ['PAYMENT_WEBHOOK_SECRET',Boolean(process.env.PAYMENT_WEBHOOK_SECRET) && (String(process.env.PAYMENT_PROVIDER||'cod').toLowerCase()==='cod' || Boolean(process.env.PAYMENT_CREATE_URL))],
+      ['PAYMENT_PROVIDER',String(process.env.PAYMENT_PROVIDER||'').toLowerCase()==='cod' || (String(process.env.PAYMENT_PROVIDER||'').toLowerCase()==='http' && Boolean(process.env.PAYMENT_CREATE_URL && process.env.PAYMENT_WEBHOOK_SECRET))],
       ['JWT_SECRET',Boolean(process.env.JWT_SECRET) && String(process.env.JWT_SECRET).length>=32 && process.env.JWT_SECRET!=='CHANGE_ME_LONG_RANDOM_SECRET'],
       ['CORS_ORIGINS',Boolean(process.env.CORS_ORIGINS && String(process.env.CORS_ORIGINS).trim())],
     ];
