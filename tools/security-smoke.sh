@@ -46,7 +46,7 @@ expect_status 401 "$BASE_URL/rider/location" -X PATCH -H 'content-type: applicat
 
 home="$(req "$BASE_URL/home?village=%D8%A7%D9%84%D8%AF%D9%8A%D8%B3%D9%85%D9%8A")"
 merchant_id="$(jq -r '.merchants[0].id' <<<"$home")"
-product_id="$(jq -r '.popular[0].id' <<<"$home")"
+product_id="$(jq -r --arg m "$merchant_id" 'first(.popular[] | select(.merchant_id==$m) | .id) // empty' <<<"$home")"
 [[ "$merchant_id" != "null" && "$product_id" != "null" ]] || fail "seed catalog missing"
 
 curl -sS -X POST "$BASE_URL/addresses" -H 'content-type: application/json' -H "Authorization: Bearer $customer_token" --data "$(jq -nc '{village:"الديسمي",label:"البيت",details:"اختبار أمني",latitude:29.6465,longitude:31.3185,isDefault:true}')" > /tmp/jayek-response.json
@@ -57,7 +57,7 @@ order_body="$(jq -nc --arg m "$merchant_id" --arg p "$product_id" --arg a "$addr
 idem="security-idempotency-$(date +%s%N)"
 curl -sS -X POST "$BASE_URL/orders" -H 'content-type: application/json' -H "Authorization: Bearer $customer_token" -H "Idempotency-Key: $idem" --data "$order_body" > /tmp/jayek-response.json
 order_id="$(json '.id')"
-[[ "$order_id" != "null" ]] || fail "order creation failed"
+[[ "$order_id" != "null" && -n "$order_id" ]] || { cat /tmp/jayek-response.json >&2; fail "order creation failed"; }
 
 expect_status 200 "$BASE_URL/orders/$order_id" -H "Authorization: Bearer $customer_token"
 expect_status 404 "$BASE_URL/orders/$order_id" -H "Authorization: Bearer $second_customer_token"
