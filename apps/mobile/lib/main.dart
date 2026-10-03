@@ -383,8 +383,8 @@ class _CartState extends State<Cart> {
         if (couponMsg.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(couponMsg, style: const TextStyle(color: primary, fontWeight: FontWeight.w700))),
         const SizedBox(height: 16),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('الإجمالي', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-          Text('${shown.toStringAsFixed(0)} ج.م', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: primary)),
+          const Text('المنتجات بعد الخصم', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+          Text('${shown.toStringAsFixed(0)} ج.م + رسوم التوصيل', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: primary)),
         ]),
         const SizedBox(height: 16),
         SizedBox(height: 52, width: double.infinity, child: FilledButton(onPressed: widget.cart.isEmpty || busy ? null : checkout, style: FilledButton.styleFrom(backgroundColor: primary), child: Text(busy ? 'جاري إنشاء الطلب...' : 'تأكيد الطلب — الدفع عند الاستلام'))),
