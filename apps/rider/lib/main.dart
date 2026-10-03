@@ -242,7 +242,7 @@ class _RiderHomeState extends State<RiderHome> {
         appBar: AppBar(
           title: const Text('جايك كابتن', style: TextStyle(fontWeight: FontWeight.w900, color: primary)),
           actions: [
-            IconButton(onPressed: sendDemoLocation, icon: const Icon(Icons.my_location, color: primary)),
+            IconButton(onPressed: sendCurrentLocation, icon: const Icon(Icons.my_location, color: primary)),
             IconButton(onPressed: widget.onLogout, icon: const Icon(Icons.logout)),
           ],
         ),
