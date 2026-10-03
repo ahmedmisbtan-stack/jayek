@@ -12,10 +12,9 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm install --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY --from=build /app/dist ./dist
-RUN addgroup -S jayek && adduser -S -G jayek jayek \
-    && chown -R jayek:jayek /app
+COPY infra/schema.sql ./schema.sql
+RUN addgroup -S jayek && adduser -S -G jayek jayek && chown -R jayek:jayek /app
 USER jayek
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:3000/api/v1/health/ready >/dev/null || exit 1
-CMD ["node","dist/main.js"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD wget -qO- http://127.0.0.1:3000/api/v1/health/ready >/dev/null || exit 1
+CMD ["sh","-c","node dist/start.js && node dist/main.js"]
