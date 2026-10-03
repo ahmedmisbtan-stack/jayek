@@ -7,6 +7,7 @@ services:
     dockerfilePath: ./Dockerfile.render
     dockerContext: .
     healthCheckPath: /api/v1/health/ready
+    preDeployCommand: cd apps/api && npm run migrate
     autoDeploy: true
     envVars:
       - key: NODE_ENV
