@@ -25,7 +25,7 @@ class Api{
       }
       if(r.statusCode>=400){
         String message='حدث خطأ في الاتصال';
-        try{final d=jsonDecode(r.body);message=String(d['message']??message);}catch(_){}
+        try{final d=jsonDecode(r.body);message=(d['message']??message).toString();}catch(_){}
         throw Exception(message);
       }
       return r.body.isEmpty?{}:jsonDecode(r.body);
