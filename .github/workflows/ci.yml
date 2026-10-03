@@ -46,6 +46,32 @@ jobs:
           cache: true
       - name: Generate Android platform files
         run: flutter create --platforms=android --project-name jayek_mobile .
+      - name: Patch Android permissions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          marker='<application'
+          perms=['<uses-permission android:name="android.permission.INTERNET"/>','<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>','<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>']
+          for perm in reversed(perms):
+              if perm not in s:
+                  s=s.replace(marker,perm+'\\n    '+marker,1)
+          p.write_text(s)
+          PY
+      - name: Patch Android permissions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          marker='<application'
+          perms=['<uses-permission android:name="android.permission.INTERNET"/>','<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>','<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>']
+          for perm in reversed(perms):
+              if perm not in s:
+                  s=s.replace(marker,perm+'\\n    '+marker,1)
+          p.write_text(s)
+          PY
       - name: Remove generated sample test
         run: rm -f test/widget_test.dart
       - name: Get packages
@@ -54,11 +80,15 @@ jobs:
         run: flutter analyze
       - name: Build debug APK
         run: flutter build apk --debug --dart-define=JAYEK_API=https://example.invalid/api/v1
+      - name: Build release APK
+        run: flutter build apk --release --dart-define=JAYEK_API=https://example.invalid/api/v1
       - name: Upload customer APK
         uses: actions/upload-artifact@v4
         with:
           name: jayek-customer-debug-apk
-          path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          path: |
+            apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+            apps/mobile/build/app/outputs/flutter-apk/app-release.apk
 
   rider:
     timeout-minutes: 20
@@ -82,9 +112,13 @@ jobs:
         run: flutter analyze
       - name: Build debug APK
         run: flutter build apk --debug --dart-define=JAYEK_API=https://example.invalid/api/v1
+      - name: Build release APK
+        run: flutter build apk --release --dart-define=JAYEK_API=https://example.invalid/api/v1
       - name: Upload rider APK
         uses: actions/upload-artifact@v4
         with:
           name: jayek-rider-debug-apk
-          path: apps/rider/build/app/outputs/flutter-apk/app-debug.apk
+          path: |
+            apps/rider/build/app/outputs/flutter-apk/app-debug.apk
+            apps/rider/build/app/outputs/flutter-apk/app-release.apk
 
