@@ -605,6 +605,17 @@ async function bootstrap(){
   app.use((req:any,res:any,next:any)=>{ res.setHeader('X-Content-Type-Options','nosniff'); res.setHeader('X-Frame-Options','DENY'); res.setHeader('Referrer-Policy','no-referrer'); res.setHeader('Permissions-Policy','geolocation=(),camera=(),microphone=()'); next(); });
   app.enableCors({origin:(origin,cb)=>{ if(!origin) return cb(null,true); if(API_ALLOWED_ORIGINS.includes(origin)) return cb(null,true); if(!isProduction && API_ALLOWED_ORIGINS.length===0) return cb(null,true); return cb(new Error('CORS origin denied'),false);}, credentials:true});
   app.setGlobalPrefix('api/v1');
+  const httpServer:any=app.getHttpAdapter().getInstance();
+  if(typeof httpServer.disable==='function') httpServer.disable('x-powered-by');
+  app.use((req:any,res:any,next:any)=>{
+    res.setHeader('X-Content-Type-Options','nosniff');
+    res.setHeader('X-Frame-Options','DENY');
+    res.setHeader('Referrer-Policy','no-referrer');
+    res.setHeader('Permissions-Policy','geolocation=(self),camera=(),microphone=()');
+    res.setHeader('Cache-Control','no-store, max-age=0');
+    next();
+  });
+
   app.use((req:any,res:any,next:any)=>{
     const incoming=String(req.headers['x-request-id']||'');
     const requestId=/^[0-9a-fA-F-]{20,80}$/.test(incoming) ? incoming : randomUUID();
