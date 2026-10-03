@@ -1,4 +1,4 @@
-export const API_VERSION = '3.3.0';
+export const API_VERSION = '3.3.1';
 
 export const ORDER_TRANSITIONS: Record<string, string[]> = {
   CREATED: ['PAYMENT_PENDING', 'CONFIRMED', 'CANCELLED'],
