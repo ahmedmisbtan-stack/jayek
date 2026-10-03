@@ -32,6 +32,7 @@ const API_ALLOWED_ORIGINS = String(process.env.CORS_ORIGINS || '').split(',').ma
 const isProduction = process.env.NODE_ENV === 'production';
 if (isProduction && JWT_SECRET.length < 32) throw new Error('JWT_SECRET must be at least 32 characters in production');
 function finiteNumber(value:any){ const n=Number(value); return Number.isFinite(n) ? n : null; }
+function validUuid(v:any){ return typeof v==='string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(v); }
 function validLatLon(lat:any, lon:any){ const a=finiteNumber(lat), b=finiteNumber(lon); return a!==null && b!==null && a>=-90 && a<=90 && b>=-180 && b<=180; }
 function boundedText(value:any, max:number){ const s=String(value ?? '').trim(); return s.length<=max ? s : s.slice(0,max); }
 const BRAND = { name:'جايك', latin:'JAYEK', tagline:'طلبك جايك .. كل اللي محتاجه لحد بابك', colors:{primary:'#176B4D',secondary:'#65B87A',accent:'#F39A3D',background:'#FFF8EA',text:'#202522'} };
@@ -197,10 +198,10 @@ class AppController {
   @Post('orders') async createOrder(@Headers() h:any,@Body() b:any){
     const userId=this.userId(h); const key=h['idempotency-key']; if(!key) throw new BadRequestException('Idempotency-Key مطلوب');
     const existing=await this.db.query('SELECT id,user_id FROM orders WHERE idempotency_key=$1',[key]); if(existing.rowCount){ if(String(existing.rows[0].user_id)!==String(userId)) throw new ConflictException('Idempotency-Key مستخدم بالفعل'); return this.orderById(existing.rows[0].id); }
-    if(!b?.merchantId||!Array.isArray(b.items)||!b.items.length||b.items.length>50) throw new BadRequestException('السلة غير صالحة');
+    if(!b?.merchantId||!validUuid(String(b.merchantId))||!Array.isArray(b.items)||!b.items.length||b.items.length>50) throw new BadRequestException('السلة غير صالحة');
     const result=await this.db.tx(async c=>{
       const merchant=(await c.query('SELECT * FROM merchants WHERE id=$1 AND is_active=true FOR SHARE',[b.merchantId])).rows[0]; if(!merchant) throw new BadRequestException('المتجر غير متاح');
-      const ids=b.items.map((x:any)=>x.productId); if(ids.some((id:any)=>typeof id!=='string'||id.length>80)||ids.length!==new Set(ids).size) throw new BadRequestException('السلة غير صالحة'); const ps=(await c.query('SELECT * FROM products WHERE id=ANY($1::uuid[]) AND merchant_id=$2 AND is_available=true FOR UPDATE',[ids,b.merchantId])).rows; const map=new Map(ps.map((p:any)=>[p.id,p]));
+      const ids=b.items.map((x:any)=>x.productId); if(ids.some((id:any)=>!validUuid(id))||ids.length!==new Set(ids).size) throw new BadRequestException('السلة غير صالحة'); const ps=(await c.query('SELECT * FROM products WHERE id=ANY($1::uuid[]) AND merchant_id=$2 AND is_available=true FOR UPDATE',[ids,b.merchantId])).rows; const map=new Map(ps.map((p:any)=>[p.id,p]));
       if(ps.length!==new Set(ids).size) throw new BadRequestException('يوجد منتج غير متاح');
       let subtotal=0; const items=[]; for(const i of b.items){const p:any=map.get(i.productId); const qty=Math.floor(Number(i.quantity||1)); if(!Number.isFinite(qty)||qty<1||qty>100) throw new BadRequestException('كمية المنتج غير صالحة'); subtotal+=Number(p.price)*qty; if(subtotal>1000000) throw new BadRequestException('قيمة الطلب كبيرة جدًا'); items.push({p,qty});}
       let discount=0;
@@ -216,6 +217,7 @@ class AppController {
         if(coupon.max_discount!=null) discount=Math.min(discount,Number(coupon.max_discount));
         discount=Math.min(Math.max(0,discount),subtotal);
       }
+      if(b.addressId && !validUuid(String(b.addressId))) throw new BadRequestException('العنوان غير صالح');
       const address=b.addressId ? (await c.query('SELECT * FROM addresses WHERE id=$1 AND user_id=$2 FOR SHARE',[b.addressId,userId])).rows[0] : null;
       if(b.addressId && !address) throw new BadRequestException('العنوان غير صالح');
       if(!address || !validLatLon(address.latitude,address.longitude)) throw new BadRequestException('العنوان يحتاج موقعًا جغرافيًا صحيحًا');
