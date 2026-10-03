@@ -53,6 +53,15 @@ const NOTIFICATION_COPY:any = {
   PAYMENT_FAILED: ['فشل الدفع','لم تتم عملية الدفع بنجاح.']
 };
 
+@Injectable()
+class Db {
+  pool = new Pool({ connectionString:process.env.DATABASE_URL || 'postgresql://jayek:jayek_dev_password@localhost:5432/jayek' });
+  query<T=any>(text:string, params:any[]=[]){ return this.pool.query<T>(text,params); }
+  async tx<T>(fn:(c:PoolClient)=>Promise<T>):Promise<T>{ const c=await this.pool.connect(); try{await c.query('BEGIN'); const r=await fn(c); await c.query('COMMIT'); return r;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();} }
+}
+
+
+
 @WebSocketGateway({ namespace: '/realtime', cors: { origin: process.env.CORS_ORIGINS ? API_ALLOWED_ORIGINS : (!isProduction) } })
 class RealtimeGateway {
   @WebSocketServer() server!: Server;
@@ -68,15 +77,6 @@ class RealtimeGateway {
     if(body?.orderId) socket.leave(`order:${body.orderId}`); return {ok:true};
   }
 }
-
-
-@Injectable()
-class Db {
-  pool = new Pool({ connectionString:process.env.DATABASE_URL || 'postgresql://jayek:jayek_dev_password@localhost:5432/jayek' });
-  query<T=any>(text:string, params:any[]=[]){ return this.pool.query<T>(text,params); }
-  async tx<T>(fn:(c:PoolClient)=>Promise<T>):Promise<T>{ const c=await this.pool.connect(); try{await c.query('BEGIN'); const r=await fn(c); await c.query('COMMIT'); return r;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();} }
-}
-
 
 
 @Controller()
