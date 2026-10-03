@@ -133,7 +133,7 @@ class AppController {
 
   private async notifyUser(userId:string,type:string,title:string,body:string,data:any={},eventKey?:string){
     const key=eventKey || `${type}:${data?.orderId||''}:${userId}`;
-    const inserted=await this.db.query(`INSERT INTO notifications(user_id,type,title,body,data_json,event_key) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(user_id,event_key) DO NOTHING RETURNING id`,[userId,type,title,body,JSON.stringify(data),key]);
+    const inserted=await this.db.query(`INSERT INTO notifications(user_id,type,title,body,data_json,event_key) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING RETURNING id`,[userId,type,title,body,JSON.stringify(data),key]);
     if(!inserted.rowCount) return {created:false};
     const tokens=(await this.db.query(`SELECT token FROM device_tokens WHERE user_id=$1`,[userId])).rows;
     for(const row of tokens){ try{ await this.integrations.push.send({token:row.token,title,body,data:Object.fromEntries(Object.entries(data).map(([k,v])=>[k,String(v)]))}); }catch{} }
