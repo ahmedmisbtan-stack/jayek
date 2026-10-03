@@ -480,6 +480,19 @@ class Profile extends StatelessWidget {
   ));
 }
 
+class AddAddressDialog extends StatefulWidget{
+ final Api api; const AddAddressDialog({super.key,required this.api});
+ @override State<AddAddressDialog> createState()=>_AddAddressDialogState();
+}
+class _AddAddressDialogState extends State<AddAddressDialog>{
+ final label=TextEditingController(text:'البيت'); final details=TextEditingController();
+ String village='الديسمي',message=''; Position? position; bool busy=false;
+ Future<void> locate() async{try{setState(()=>busy=true);if(!await Geolocator.isLocationServiceEnabled())throw Exception('فعّل خدمة الموقع أولًا');var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)throw Exception('اسمح بالموقع من إعدادات الهاتف');position=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high,timeLimit:Duration(seconds:10)));if(mounted)setState(()=>message='تم تحديد موقعك');}catch(e){if(mounted)setState(()=>message=e.toString().replaceFirst('Exception: ',''));}finally{if(mounted)setState(()=>busy=false);}}
+ Future<void> save() async{if(position==null){await locate();if(position==null)return;}try{setState(()=>busy=true);await widget.api.post('/addresses',{'label':label.text.trim().isEmpty?'البيت':label.text.trim(),'village':village,'details':details.text.trim(),'latitude':position!.latitude,'longitude':position!.longitude,'isDefault':true});if(mounted)Navigator.pop(context,true);}catch(e){if(mounted)setState(()=>message=e.toString().replaceFirst('Exception: ',''));}finally{if(mounted)setState(()=>busy=false);}}
+ @override void dispose(){label.dispose();details.dispose();super.dispose();}
+ @override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child(AlertDialog(title:const Text('إضافة عنوان'),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:label,decoration:const InputDecoration(labelText:'اسم العنوان')),const SizedBox(height:8),DropdownButtonFormField<String>(initialValue:village,items:const ['الديسمي','الصف','القرى المجاورة'].map((v)=>DropdownMenuItem(value:v,child:Text(v))).toList(),onChanged:(v){if(v!=null)setState(()=>village=v);},decoration:const InputDecoration(labelText:'القرية')),const SizedBox(height:8),TextField(controller:details,maxLines:2,decoration:const InputDecoration(labelText:'تفاصيل العنوان')),const SizedBox(height:8),OutlinedButton.icon(onPressed:busy?null:locate,icon:const Icon(Icons.my_location),label:Text(position==null?'حدد موقعي الحالي':'تحديث الموقع')),if(message.isNotEmpty)Text(message)])),actions:[TextButton(onPressed:busy?null:()=>Navigator.pop(c),child:const Text('إلغاء')),FilledButton(onPressed:busy?null:save,child:Text(busy?'جاري الحفظ...':'حفظ'))])));
+}
+
 class Addresses extends StatefulWidget {
   final Api api; const Addresses({super.key, required this.api});
   @override State<Addresses> createState() => _AddressesState();
@@ -489,9 +502,9 @@ class _AddressesState extends State<Addresses> {
   @override void initState() { super.initState(); load(); }
   Future<void> load() async { try { addresses = List<dynamic>.from(await widget.api.get('/addresses') as List); } catch (_) { addresses = []; } if (mounted) setState(() {}); }
   @override Widget build(BuildContext context) => Directionality(textDirection: TextDirection.rtl, child: Scaffold(
-    appBar: AppBar(title: const Text('عناويني')),
+    appBar: AppBar(title: const Text('عناويني')), floatingActionButton: FloatingActionButton.extended(onPressed: () async {final ok=await showDialog<bool>(context:context,builder:(_)=>AddAddressDialog(api:widget.api));if(ok==true)load();},icon:const Icon(Icons.add_location_alt),label:const Text('إضافة عنوان')),
     body: RefreshIndicator(onRefresh: load, child: ListView(padding: const EdgeInsets.all(12), children: [
-      if (addresses.isEmpty) const Padding(padding: EdgeInsets.all(40), child: Center(child: Text('أضف عنوان توصيل من لوحة العميل'))),
+      if (addresses.isEmpty) const Padding(padding: EdgeInsets.all(40), child: Center(child: Text('أضف عنوان توصيل باستخدام موقعك الحالي'))),
       ...addresses.map((a) => Card(child: ListTile(leading: const Icon(Icons.home, color: primary), title: Text('${a['label'] ?? 'عنوان'}'), subtitle: Text('${a['village']} — ${a['details'] ?? ''}')))),
     ])),
   ));
