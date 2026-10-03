@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { EventEmitter } from 'events';
-import { Module, Controller, Get, Post, Patch, Body, Param, Headers, Query, Delete, Req, BadRequestException, NotFoundException, UnauthorizedException, ForbiddenException, ConflictException, Injectable } from '@nestjs/common';
+import { Module, Controller, Get, Post, Patch, Body, Param, Headers, Query, Delete, Req, BadRequestException, NotFoundException, UnauthorizedException, ForbiddenException, ConflictException, HttpException, Catch, ArgumentsHost, ExceptionFilter, Injectable } from '@nestjs/common';
 import { Pool, PoolClient } from 'pg';
 import { randomUUID, createHmac, createHash } from 'crypto';
 import { IntegrationService } from './integrations';
@@ -578,9 +578,23 @@ class RealtimeGateway {
 
 
 
+@Catch()
+class ApiExceptionFilter implements ExceptionFilter{
+  catch(exception:any,host:ArgumentsHost){
+    const res=host.switchToHttp().getResponse();
+    const req=host.switchToHttp().getRequest();
+    if(exception?.code==='22P02') return res.status(400).json({statusCode:400,message:'بيانات غير صالحة',requestId:req.requestId});
+    if(exception?.code==='23505') return res.status(409).json({statusCode:409,message:'البيانات موجودة بالفعل',requestId:req.requestId});
+    if(exception instanceof HttpException){const status=exception.getStatus();const body=exception.getResponse();return res.status(status).json(typeof body==='string'?{statusCode:status,message:body,requestId:req.requestId}:{...body,requestId:req.requestId});}
+    console.error(JSON.stringify({event:'unhandled_exception',requestId:req.requestId,error:String(exception?.message||exception)}));
+    return res.status(500).json({statusCode:500,message:'حدث خطأ داخلي',requestId:req.requestId});
+  }
+}
+
 async function bootstrap(){
   const app=await NestFactory.create(AppModule,{rawBody:true});
   app.set('trust proxy', 1);
+  app.useGlobalFilters(new ApiExceptionFilter());
   app.use((req:any,res:any,next:any)=>{ res.setHeader('X-Content-Type-Options','nosniff'); res.setHeader('X-Frame-Options','DENY'); res.setHeader('Referrer-Policy','no-referrer'); res.setHeader('Permissions-Policy','geolocation=(),camera=(),microphone=()'); next(); });
   app.enableCors({origin:(origin,cb)=>{ if(!origin) return cb(null,true); if(API_ALLOWED_ORIGINS.includes(origin)) return cb(null,true); if(!isProduction && API_ALLOWED_ORIGINS.length===0) return cb(null,true); return cb(new Error('CORS origin denied'),false);}, credentials:true});
   app.setGlobalPrefix('api/v1');
