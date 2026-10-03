@@ -116,7 +116,7 @@ export class IntegrationService {
   validateProductionConfig(){
     if(process.env.NODE_ENV!=='production') return;
     const checks:[string,boolean][]=[
-      ['OTP_PROVIDER=http',String(process.env.OTP_PROVIDER||'').toLowerCase()==='http' && Boolean(process.env.OTP_HTTP_URL && process.env.OTP_HTTP_AUTH)],
+      ['OTP_PROVIDER=http-or-demo', (String(process.env.OTP_PROVIDER||'').toLowerCase()==='http' && Boolean(process.env.OTP_HTTP_URL && process.env.OTP_HTTP_AUTH)) || (String(process.env.OTP_PROVIDER||'').toLowerCase()==='console' && String(process.env.DEMO_OTP_ENABLED||'false').toLowerCase()==='true' && Boolean(String(process.env.DEMO_OTP_PHONES||'').trim()))],
       ['PUSH_PROVIDER=http',String(process.env.PUSH_PROVIDER||'').toLowerCase()==='http' && Boolean(process.env.PUSH_HTTP_URL && process.env.PUSH_HTTP_AUTH)],
       ['MAP_PROVIDER=http',String(process.env.MAP_PROVIDER||'').toLowerCase()==='http' && Boolean(process.env.MAPS_ROUTE_URL)],
       ['STORAGE_PROVIDER=s3',String(process.env.STORAGE_PROVIDER||'').toLowerCase()==='s3' && Boolean(process.env.STORAGE_UPLOAD_URL && process.env.STORAGE_PUBLIC_BASE_URL)],
