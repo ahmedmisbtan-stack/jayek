@@ -61,6 +61,7 @@ order_id="$(json '.id')"
 
 expect_status 200 "$BASE_URL/orders/$order_id" -H "Authorization: Bearer $customer_token"
 expect_status 404 "$BASE_URL/orders/$order_id" -H "Authorization: Bearer $second_customer_token"
+expect_status 400 "$BASE_URL/orders/not-a-uuid" -H "Authorization: Bearer $customer_token"
 
 # IDOR regression: another user must not be able to reuse the first user's idempotency key.
 expect_status 409 "$BASE_URL/orders" -X POST -H 'content-type: application/json' -H "Authorization: Bearer $second_customer_token" -H "Idempotency-Key: $idem" --data "$order_body"
