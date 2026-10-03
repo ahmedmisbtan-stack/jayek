@@ -214,12 +214,15 @@ class _RiderHomeState extends State<RiderHome> {
 
   Future<void> sendCurrentLocation() async {
     try {
-      await widget.api.patch('/rider/location', {'latitude': 29.6465, 'longitude': 31.3185, 'accuracy': 30});
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث موقع الكابتن — وضع التجربة')));
+      if(!await Geolocator.isLocationServiceEnabled()) throw Exception('فعّل خدمة الموقع');
+      var p=await Geolocator.checkPermission();
+      if(p==LocationPermission.denied)p=await Geolocator.requestPermission();
+      if(p==LocationPermission.denied||p==LocationPermission.deniedForever) throw Exception('اسمح بالموقع من إعدادات الهاتف');
+      final pos=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high,timeLimit:Duration(seconds:10)));
+      await widget.api.patch('/rider/location', {'latitude':pos.latitude,'longitude':pos.longitude,'accuracy':pos.accuracy});
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث موقعك الحالي')));
       await load();
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-    }
+    } catch(e) { if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Exception: ','')))); }
   }
 
   String label(String status) {
