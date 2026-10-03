@@ -86,7 +86,7 @@ class AppController {
   @Get('health') health(){ return {service:'jayek-api',status:'ok',version:API_VERSION,brand:BRAND,timestamp:new Date().toISOString()}; }
   @Get('integrations/status') async integrationStatus(@Headers() h:any){ await this.actor(h,['ADMIN','SUPER_ADMIN']); return this.integrations.status(); }
   @Get('health/ready') async ready(){ await this.db.query('SELECT 1'); return {status:'ready',database:'ok',timestamp:new Date().toISOString()}; }
-  @Get('health/metrics') async metrics(@Headers() h:any){ await this.actor(h,['ADMIN','SUPER_ADMIN']); const r=await this.db.query(`SELECT (SELECT count(*) FROM orders WHERE status NOT IN ('DELIVERED','CANCELLED','REJECTED','PAYMENT_FAILED'))::int active_orders,(SELECT count(*) FROM riders WHERE is_online=true)::int online_riders,(SELECT count(*) FROM support_tickets WHERE status NOT IN ('RESOLVED','CLOSED'))::int open_support,(SELECT count(*) FROM products WHERE stock_quantity <= stock_low_threshold AND is_available=true)::int low_stock`); return {status:'ok',version:API_VERSION,...r.rows[0],timestamp:new Date().toISOString()}; }
+  @Get('health/metrics') async healthMetrics(@Headers() h:any){ await this.actor(h,['ADMIN','SUPER_ADMIN']); const r=await this.db.query(`SELECT (SELECT count(*) FROM orders WHERE status NOT IN ('DELIVERED','CANCELLED','REJECTED','PAYMENT_FAILED'))::int active_orders,(SELECT count(*) FROM riders WHERE is_online=true)::int online_riders,(SELECT count(*) FROM support_tickets WHERE status NOT IN ('RESOLVED','CLOSED'))::int open_support,(SELECT count(*) FROM products WHERE stock_quantity <= stock_low_threshold AND is_available=true)::int low_stock`); return {status:'ok',version:API_VERSION,...r.rows[0],timestamp:new Date().toISOString()}; }
   @Get('config') config(){ return {brand:BRAND,locale:'ar-EG',rtl:true,services:SERVICES,defaultVillage:'الديسمي'}; }
 
   @Post('auth/request-otp') async requestOtp(@Body() b:any){
@@ -329,7 +329,7 @@ class AppController {
     if(b?.stockQuantity==null || Number(b.stockQuantity)<0) throw new BadRequestException('stockQuantity غير صالح');
     const threshold=b.lowStockThreshold==null?undefined:Number(b.lowStockThreshold);
     if(threshold!==undefined && threshold<0) throw new BadRequestException('lowStockThreshold غير صالح');
-    const fields=['stock_quantity=$1']; const values=[Math.floor(Number(b.stockQuantity))];
+    const fields=['stock_quantity=$1']; const values:any[]=[Math.floor(Number(b.stockQuantity))];
     if(threshold!==undefined){fields.push('low_stock_threshold=$2');values.push(Math.floor(threshold));}
     values.push(productId);
     const r=await this.db.query(`UPDATE products SET ${fields.join(',')} WHERE id=$${values.length} RETURNING *`,values);
@@ -440,8 +440,6 @@ class AppController {
     const r=await this.db.query(`UPDATE deliveries d SET proof_url=$1 FROM riders r WHERE d.order_id=$2 AND d.rider_id=r.id AND r.user_id=$3 RETURNING d.*`,[b.proofUrl,orderId,this.userId(h)]);
     if(!r.rowCount) throw new NotFoundException('التسليم غير موجود'); return r.rows[0];
   }
-  @Get('notifications') async notifications(@Headers() h:any){ return (await this.db.query('SELECT * FROM notifications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 100',[this.userId(h)])).rows; }
-  @Patch('notifications/:id/read') async readNotification(@Param('id') id:string,@Headers() h:any){ const r=await this.db.query('UPDATE notifications SET read_at=COALESCE(read_at,now()) WHERE id=$1 AND user_id=$2 RETURNING *',[id,this.userId(h)]);if(!r.rowCount)throw new NotFoundException('الإشعار غير موجود');return r.rows[0]; }
   @Post('reviews') async review(@Headers() h:any,@Body() b:any){ const userId=this.userId(h); if(!b?.orderId||!Number.isInteger(Number(b.rating))||Number(b.rating)<1||Number(b.rating)>5)throw new BadRequestException('التقييم غير صالح'); return this.db.tx(async c=>{const o=(await c.query(`SELECT * FROM orders WHERE id=$1 AND user_id=$2 AND status='DELIVERED'`,[b.orderId,userId])).rows[0];if(!o)throw new BadRequestException('لا يمكن تقييم هذا الطلب');const r=(await c.query('INSERT INTO reviews(order_id,user_id,merchant_id,rating,comment) VALUES($1,$2,$3,$4,$5) RETURNING *',[b.orderId,userId,o.merchant_id,b.rating,b.comment||null])).rows[0];await c.query(`UPDATE merchants SET rating=ROUND(((rating*GREATEST((SELECT count(*) FROM reviews WHERE merchant_id=$1)-1,0))+ $2)/(SELECT count(*) FROM reviews WHERE merchant_id=$1),1) WHERE id=$1`,[o.merchant_id,b.rating]);return r;}); }
   @Post('support/tickets') async support(@Headers() h:any,@Body() b:any){if(!b?.subject||!b?.message)throw new BadRequestException('بيانات البلاغ ناقصة');const t=(await this.db.query('INSERT INTO support_tickets(user_id,order_id,subject,message,priority) VALUES($1,$2,$3,$4,$5) RETURNING *',[this.userId(h),b.orderId||null,b.subject,b.message,b.priority||'NORMAL'])).rows[0]; await this.notifyUser(this.userId(h),'SUPPORT','تم فتح بلاغ الدعم',`رقم البلاغ ${t.id} تم استلامه.`,{ticketId:t.id},`SUPPORT_CREATED:${t.id}`); return t;}
   @Get('support/tickets') async myTickets(@Headers() h:any){return (await this.db.query('SELECT * FROM support_tickets WHERE user_id=$1 ORDER BY created_at DESC',[this.userId(h)])).rows;}
@@ -556,7 +554,7 @@ class AppController {
 
 
 async function bootstrap(){
-  const app=await NestFactory.create(AppModule,{rawBody:true,bodyParser:{json:{limit:'1mb'},urlencoded:{limit:'1mb',extended:true}}});
+  const app=await NestFactory.create(AppModule,{rawBody:true});
   app.enableCors({origin:(origin,cb)=>{ if(!origin || API_ALLOWED_ORIGINS.length===0 || API_ALLOWED_ORIGINS.includes(origin)) return cb(null,true); return cb(new Error('CORS origin denied'),false);}, credentials:true});
   app.setGlobalPrefix('api/v1');
   app.use((req:any,res:any,next:any)=>{
