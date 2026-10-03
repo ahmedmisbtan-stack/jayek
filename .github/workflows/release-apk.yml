@@ -1,6 +1,8 @@
 name: JAYEK Release APK
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -35,7 +37,7 @@ jobs:
       - name: Build release APK
         working-directory: apps/${{ matrix.app }}
         env:
-          JAYEK_API: ${{ vars.JAYEK_API }}
+          JAYEK_API: ${{ vars.JAYEK_API || 'https://jayek-api.onrender.com/api/v1' }}
         run: |
           test -n "$JAYEK_API" || { echo "Repository variable JAYEK_API is required"; exit 1; }
           flutter build apk --release --dart-define=JAYEK_API="$JAYEK_API"
