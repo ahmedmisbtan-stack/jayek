@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { EventEmitter } from 'events';
-import { Module, Controller, Get, Post, Patch, Body, Param, Headers, Query, Delete, Req, BadRequestException, NotFoundException, UnauthorizedException, ForbiddenException, ConflictException, HttpException, Catch, ArgumentsHost, ExceptionFilter, Injectable } from '@nestjs/common';
+import { Module, Controller, Get, Post, Patch, Body, Param, Headers, Query, Delete, Req, BadRequestException, NotFoundException, UnauthorizedException, ForbiddenException, ConflictException, ServiceUnavailableException, HttpException, Catch, ArgumentsHost, ExceptionFilter, Injectable } from '@nestjs/common';
 import { Pool, PoolClient } from 'pg';
 import { randomUUID, createHmac, createHash } from 'crypto';
 import { IntegrationService } from './integrations';
@@ -595,7 +595,7 @@ class ApiExceptionFilter implements ExceptionFilter{
 
 async function bootstrap(){
   const app=await NestFactory.create(AppModule,{rawBody:true});
-  app.set('trust proxy', 1);
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
   app.useGlobalFilters(new ApiExceptionFilter());
   app.use((req:any,res:any,next:any)=>{ res.setHeader('X-Content-Type-Options','nosniff'); res.setHeader('X-Frame-Options','DENY'); res.setHeader('Referrer-Policy','no-referrer'); res.setHeader('Permissions-Policy','geolocation=(),camera=(),microphone=()'); next(); });
   app.enableCors({origin:(origin,cb)=>{ if(!origin) return cb(null,true); if(API_ALLOWED_ORIGINS.includes(origin)) return cb(null,true); if(!isProduction && API_ALLOWED_ORIGINS.length===0) return cb(null,true); return cb(new Error('CORS origin denied'),false);}, credentials:true});
