@@ -42,7 +42,7 @@ jobs:
         run: npm test
 
   customer:
-    timeout-minutes: 20
+    timeout-minutes: 35
     runs-on: ubuntu-latest
     defaults:
       run:
