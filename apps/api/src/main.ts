@@ -13,6 +13,9 @@ if (process.env.NODE_ENV === 'production' && JWT_SECRET.length < 32) throw new E
 const REFRESH_TOKEN_TTL_DAYS = Number(process.env.REFRESH_TOKEN_TTL_DAYS || 30);
 const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60000);
 const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 120);
+const DEMO_OTP_ENABLED = String(process.env.DEMO_OTP_ENABLED || 'false').toLowerCase() === 'true';
+const DEMO_OTP_CODE = String(process.env.DEMO_OTP_CODE || '1234');
+const DEMO_OTP_PHONES = new Set(String(process.env.DEMO_OTP_PHONES || '').split(',').map(x=>x.trim()).filter(Boolean));
 const rateBuckets = new Map<string,{start:number,count:number}>();
 function hashToken(v:string){ return createHash('sha256').update(v).digest('hex'); }
 function signToken(payload:any){ const body=Buffer.from(JSON.stringify({...payload,exp:Math.floor(Date.now()/1000)+Number(process.env.ACCESS_TOKEN_TTL_SECONDS||3600)})).toString('base64url'); const sig=createHmac('sha256',JWT_SECRET).update(body).digest('base64url'); return `${body}.${sig}`; }
@@ -82,11 +85,13 @@ class AppController {
     const now=Date.now(), current=this.otpAttempts.get(phone);
     if(!current || now-current.start>=15*60*1000) this.otpAttempts.set(phone,{start:now,count:1});
     else { current.count++; if(current.count>5) throw new BadRequestException('تم تجاوز حد طلبات رمز التحقق، حاول لاحقًا'); }
-    const challengeId=randomUUID(), code=this.integrations.generateOtp();
+    const challengeId=randomUUID();
+    const demoOtp = DEMO_OTP_ENABLED && DEMO_OTP_PHONES.has(phone);
+    const code = demoOtp ? DEMO_OTP_CODE : this.integrations.generateOtp();
     const codeHash=createHash('sha256').update(code).digest('hex');
     await this.db.query("INSERT INTO otp_challenges(id,phone,code,expires_at) VALUES($1,$2,$3,now()+interval '2 minutes')",[challengeId,phone,codeHash]);
     const sent=await this.integrations.otp.sendOtp(phone,code);
-    return {success:true,challengeId,expiresIn:120,provider:sent.provider,devCode:process.env.NODE_ENV==='production'?undefined:code};
+    return {success:true,challengeId,expiresIn:120,provider:sent.provider,devCode:(process.env.NODE_ENV!=='production' || demoOtp)?code:undefined};
   }
   @Post('auth/verify-otp') async verifyOtp(@Body() b:any){
     const r=await this.db.query('SELECT * FROM otp_challenges WHERE id=$1 AND phone=$2 AND expires_at>now() AND consumed_at IS NULL',[b?.challengeId,b?.phone]);
