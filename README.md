@@ -50,3 +50,15 @@ CI/CD foundations are in `.github/workflows/`. Local/staging checks are availabl
 - One-command production deployment helper with readiness wait.
 - Release gates for API, Docker, DB, Customer APK, Rider APK, providers, backup/restore, and E2E order lifecycle.
 - Production launch guide: `docs/PRODUCTION_LAUNCH_v2.1.md`.
+
+
+## v3.3.0 verification
+- Customer Android package: `com.jayek.app`
+- Rider Android package: `com.jayek.rider`
+- Backend: NestJS + PostgreSQL + Redis-ready integrations
+- COD-only pilot payment path; online payment confirmation is disabled until a real provider is configured.
+- Customer address creation uses device GPS.
+- Rider location can use device GPS instead of the old demo coordinates.
+- CI builds debug and release APKs and runs Flutter analysis/tests.
+- Security smoke covers authentication/RBAC, malformed input, IDOR/idempotency replay, payment abuse, order lifecycle, review replay, and security headers.
+- OWASP ZAP baseline scanning is included in CI.
