@@ -27,6 +27,8 @@ otp_login(){
 }
 
 expect_status 200 "$BASE_URL/health"
+curl -sSI "$BASE_URL/health" > /tmp/jayek-headers.txt
+for header in 'x-content-type-options: nosniff' 'x-frame-options: DENY' 'referrer-policy: no-referrer'; do grep -iq "^$header" /tmp/jayek-headers.txt || fail "missing security header: $header"; done
 expect_status 400 "$BASE_URL/auth/request-otp" -X POST -H 'content-type: application/json' --data '{"phone":"010"}'
 
 customer_token="$(otp_login "$CUSTOMER_PHONE" "Security Test Customer")"
