@@ -45,7 +45,7 @@ jobs:
           channel: stable
           cache: true
       - name: Generate Android platform files
-        run: flutter create --platforms=android --project-name jayek_mobile .
+        run: flutter create --platforms=android --org com.jayek --project-name app .
       - name: Patch Android permissions
         run: |
           python3 - <<'PY'
@@ -90,7 +90,7 @@ jobs:
           channel: stable
           cache: true
       - name: Generate Android platform files
-        run: flutter create --platforms=android --project-name jayek_rider .
+        run: flutter create --platforms=android --org com.jayek --project-name rider .
       - name: Patch Android permissions
         run: |
           python3 - <<'PY'
