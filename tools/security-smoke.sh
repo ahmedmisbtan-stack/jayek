@@ -45,9 +45,9 @@ expect_status 400 "$BASE_URL/addresses" -X POST -H 'content-type: application/js
 expect_status 401 "$BASE_URL/rider/location" -X PATCH -H 'content-type: application/json' -H "Authorization: Bearer $customer_token" --data '{"latitude":29.6465,"longitude":31.3185}'
 
 home="$(req "$BASE_URL/home?village=%D8%A7%D9%84%D8%AF%D9%8A%D8%B3%D9%85%D9%8A")"
-merchant_id="$(jq -r '.merchants[0].id' <<<"$home")"
-product_id="$(jq -r --arg m "$merchant_id" 'first(.popular[] | select(.merchant_id==$m) | .id) // empty' <<<"$home")"
-[[ "$merchant_id" != "null" && "$product_id" != "null" ]] || fail "seed catalog missing"
+merchant_id="$(jq -r '.popular[0].merchant_id // empty' <<<"$home")"
+product_id="$(jq -r '.popular[0].id // empty' <<<"$home")"
+[[ -n "$merchant_id" && -n "$product_id" && "$merchant_id" != "null" && "$product_id" != "null" ]] || fail "seed catalog missing"
 
 curl -sS -X POST "$BASE_URL/addresses" -H 'content-type: application/json' -H "Authorization: Bearer $customer_token" --data "$(jq -nc '{village:"الديسمي",label:"البيت",details:"اختبار أمني",latitude:29.6465,longitude:31.3185,isDefault:true}')" > /tmp/jayek-response.json
 address_id="$(json '.id')"
