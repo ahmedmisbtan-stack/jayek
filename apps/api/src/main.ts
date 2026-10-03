@@ -530,7 +530,33 @@ class AppController {
 
   @Get('admin/metrics') async metrics(@Headers() h:any){ await this.actor(h,['ADMIN','SUPER_ADMIN']); const r=await this.db.query(`SELECT (SELECT count(*) FROM users) users,(SELECT count(*) FROM merchants) merchants,(SELECT count(*) FROM products) products,(SELECT count(*) FROM orders) orders,(SELECT count(*) FROM orders WHERE status='DELIVERED') delivered,COALESCE((SELECT sum(total) FROM orders WHERE status='DELIVERED'),0) revenue`); return r.rows[0]; }
 }
+@Injectable()
+class Db {
+  pool = new Pool({ connectionString:process.env.DATABASE_URL || 'postgresql://jayek:jayek_dev_password@localhost:5432/jayek' });
+  query<T=any>(text:string, params:any[]=[]){ return this.pool.query<T>(text,params); }
+  async tx<T>(fn:(c:PoolClient)=>Promise<T>):Promise<T>{ const c=await this.pool.connect(); try{await c.query('BEGIN'); const r=await fn(c); await c.query('COMMIT'); return r;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();} }
+}
+
+
+
 @Module({controllers:[AppController],providers:[Db,RealtimeGateway,IntegrationService]}) class AppModule{}
+
+
+async function bootstrap(){
+  const app=await NestFactory.create(AppModule,{rawBody:true});
+  app.enableCors({origin:(origin,cb)=>{ if(!origin) return cb(null,true); if(API_ALLOWED_ORIGINS.includes(origin)) return cb(null,true); if(!isProduction && API_ALLOWED_ORIGINS.length===0) return cb(null,true); return cb(new Error('CORS origin denied'),false);}, credentials:true});
+  app.setGlobalPrefix('api/v1');
+  app.use((req:any,res:any,next:any)=>{
+    const requestId=String(req.headers['x-request-id']||randomUUID());
+    req.requestId=requestId; res.setHeader('x-request-id',requestId);
+    const started=Date.now();
+    res.on('finish',()=>console.log(JSON.stringify({event:'http_request',requestId,method:req.method,path:req.originalUrl,status:res.statusCode,durationMs:Date.now()-started})));
+    next();
+  });
+  app.use((req:any,res:any,next:any)=>{ const key=String(req.ip||req.headers['x-forwarded-for']||'unknown').split(',')[0]; const now=Date.now(); const b=rateBuckets.get(key); if(!b||now-b.start>=RATE_LIMIT_WINDOW_MS){rateBuckets.set(key,{start:now,count:1}); return next();} b.count++; if(b.count>RATE_LIMIT_MAX){res.status(429).json({statusCode:429,message:'طلبات كثيرة مؤقتًا',requestId:req.requestId});return;} next(); });
+  await app.listen(Number(process.env.PORT||3000));
+  console.log(JSON.stringify({event:'server_started',version:API_VERSION,port:Number(process.env.PORT||3000),nodeEnv:process.env.NODE_ENV||'development'}));
+}@Module({controllers:[AppController],providers:[Db,RealtimeGateway,IntegrationService]}) class AppModule{}
 
 
 async function bootstrap(){
@@ -572,5 +598,4 @@ class RealtimeGateway {
     if(body?.orderId) socket.leave(`order:${body.orderId}`); return {ok:true};
   }
 }
-
-
+bootstrap();
