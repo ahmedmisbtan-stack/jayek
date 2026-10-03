@@ -69,3 +69,7 @@ CI/CD foundations are in `.github/workflows/`. Local/staging checks are availabl
 - A COD payment is marked `PAID` only when the assigned rider marks the order `DELIVERED`.
 - Online card/wallet checkout is rejected by the API until a future payment provider is intentionally enabled.
 - App checkout displays the COD payment method directly; no online-payment selection is exposed.
+
+
+## Pilot gate verification
+- Latest automated gate target: API build/tests, Customer APK debug+release, Rider APK debug+release, closed-loop gate, authorization/input-abuse smoke, and OWASP ZAP baseline scan.
