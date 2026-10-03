@@ -13,4 +13,4 @@ RUN addgroup -S jayek && adduser -S -G jayek jayek && chown -R jayek:jayek /app
 USER jayek
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD wget -qO- http://127.0.0.1:3000/api/v1/health/ready >/dev/null || exit 1
-CMD ["sh","-c","npm run migrate && node dist/main.js"]
+CMD ["node","dist/main.js"]
