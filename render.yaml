@@ -30,7 +30,7 @@ services:
       - key: DEMO_OTP_ENABLED
         value: "true"
       - key: DEMO_OTP_CODE
-        sync: false
+        value: "2468"
       - key: DEMO_OTP_PHONES
         value: 01000000001,01000000002,01000000003,01000000004
       - key: PUSH_PROVIDER
