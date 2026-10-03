@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: jayek-ci-${{ github.run_id }}
-  cancel-in-progress: false
+  group: jayek-ci-main
+  cancel-in-progress: true
 
 jobs:
   api:
