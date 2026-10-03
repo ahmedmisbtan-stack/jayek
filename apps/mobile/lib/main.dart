@@ -490,7 +490,41 @@ class _AddAddressDialogState extends State<AddAddressDialog>{
  Future<void> locate() async{try{setState(()=>busy=true);if(!await Geolocator.isLocationServiceEnabled())throw Exception('فعّل خدمة الموقع أولًا');var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)throw Exception('اسمح بالموقع من إعدادات الهاتف');position=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high,timeLimit:Duration(seconds:10)));if(mounted)setState(()=>message='تم تحديد موقعك');}catch(e){if(mounted)setState(()=>message=e.toString().replaceFirst('Exception: ',''));}finally{if(mounted)setState(()=>busy=false);}}
  Future<void> save() async{if(position==null){await locate();if(position==null)return;}try{setState(()=>busy=true);await widget.api.post('/addresses',{'label':label.text.trim().isEmpty?'البيت':label.text.trim(),'village':village,'details':details.text.trim(),'latitude':position!.latitude,'longitude':position!.longitude,'isDefault':true});if(mounted)Navigator.pop(context,true);}catch(e){if(mounted)setState(()=>message=e.toString().replaceFirst('Exception: ',''));}finally{if(mounted)setState(()=>busy=false);}}
  @override void dispose(){label.dispose();details.dispose();super.dispose();}
- @override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:AlertDialog(title:const Text('إضافة عنوان'),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:label,decoration:const InputDecoration(labelText:'اسم العنوان')),const SizedBox(height:8),DropdownButtonFormField<String>(initialValue:village,items:const ['الديسمي','الصف','القرى المجاورة'].map((v)=>DropdownMenuItem(value:v,child:Text(v))).toList(),onChanged:(v){if(v!=null)setState(()=>village=v);},decoration:const InputDecoration(labelText:'القرية')),const SizedBox(height:8),TextField(controller:details,maxLines:2,decoration:const InputDecoration(labelText:'تفاصيل العنوان')),const SizedBox(height:8),OutlinedButton.icon(onPressed:busy?null:locate,icon:const Icon(Icons.my_location),label:Text(position==null?'حدد موقعي الحالي':'تحديث الموقع')),if(message.isNotEmpty)Text(message)])),actions:[TextButton(onPressed:busy?null:()=>Navigator.pop(c),child:const Text('إلغاء')),FilledButton(onPressed:busy?null:save,child:Text(busy?'جاري الحفظ...':'حفظ'))])));
+ @override
+ Widget build(BuildContext c) => Directionality(
+   textDirection: TextDirection.rtl,
+   child: AlertDialog(
+     title: const Text('إضافة عنوان'),
+     content: SingleChildScrollView(
+       child: Column(
+         mainAxisSize: MainAxisSize.min,
+         children: [
+           TextField(controller: label, decoration: const InputDecoration(labelText: 'اسم العنوان')),
+           const SizedBox(height: 8),
+           DropdownButtonFormField<String>(
+             initialValue: village,
+             items: const ['الديسمي','الصف','القرى المجاورة'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+             onChanged: (v) { if (v != null) setState(() => village = v); },
+             decoration: const InputDecoration(labelText: 'القرية'),
+           ),
+           const SizedBox(height: 8),
+           TextField(controller: details, maxLines: 2, decoration: const InputDecoration(labelText: 'تفاصيل العنوان')),
+           const SizedBox(height: 8),
+           OutlinedButton.icon(
+             onPressed: busy ? null : locate,
+             icon: const Icon(Icons.my_location),
+             label: Text(position == null ? 'حدد موقعي الحالي' : 'تحديث الموقع'),
+           ),
+           if (message.isNotEmpty) Text(message),
+         ],
+       ),
+     ),
+     actions: [
+       TextButton(onPressed: busy ? null : () => Navigator.pop(c), child: const Text('إلغاء')),
+       FilledButton(onPressed: busy ? null : save, child: Text(busy ? 'جاري الحفظ...' : 'حفظ')),
+     ],
+   ),
+ );
 }
 
 class Addresses extends StatefulWidget {
