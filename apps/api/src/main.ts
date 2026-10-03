@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { EventEmitter } from 'events';
-import { Module, Controller, Get, Post, Patch, Body, Param, Headers, Query, Delete, Req, BadRequestException, NotFoundException, UnauthorizedException, ForbiddenException, Injectable } from '@nestjs/common';
+import { Module, Controller, Get, Post, Patch, Body, Param, Headers, Query, Delete, Req, BadRequestException, NotFoundException, UnauthorizedException, ForbiddenException, ConflictException, Injectable } from '@nestjs/common';
 import { Pool, PoolClient } from 'pg';
 import { randomUUID, createHmac, createHash } from 'crypto';
 import { IntegrationService } from './integrations';
@@ -192,7 +192,7 @@ class AppController {
 
   @Post('orders') async createOrder(@Headers() h:any,@Body() b:any){
     const userId=this.userId(h); const key=h['idempotency-key']; if(!key) throw new BadRequestException('Idempotency-Key مطلوب');
-    const existing=await this.db.query('SELECT * FROM orders WHERE idempotency_key=$1',[key]); if(existing.rowCount) return this.orderById(existing.rows[0].id);
+    const existing=await this.db.query('SELECT id,user_id FROM orders WHERE idempotency_key=$1',[key]); if(existing.rowCount){ if(String(existing.rows[0].user_id)!==String(userId)) throw new ConflictException('Idempotency-Key مستخدم بالفعل'); return this.orderById(existing.rows[0].id); }
     if(!b?.merchantId||!Array.isArray(b.items)||!b.items.length||b.items.length>50) throw new BadRequestException('السلة غير صالحة');
     const result=await this.db.tx(async c=>{
       const merchant=(await c.query('SELECT * FROM merchants WHERE id=$1 AND is_active=true FOR SHARE',[b.merchantId])).rows[0]; if(!merchant) throw new BadRequestException('المتجر غير متاح');
@@ -300,7 +300,7 @@ class AppController {
     await this.actor(h,['MERCHANT','ADMIN','SUPER_ADMIN']);
     if(!b?.merchantId||!b?.name||b.price==null) throw new BadRequestException('بيانات المنتج ناقصة');
     await this.merchantActor(h,String(b.merchantId));
-    return (await this.db.query(`INSERT INTO products(merchant_id,category_id,name,description,price,image_url,is_available) VALUES($1,$2,$3,$4,$5,$6,COALESCE($7,true)) RETURNING *`,[b.merchantId,b.categoryId||null,b.name,b.description||null,b.price,b.imageUrl||null,b.isAvailable])).rows[0];
+    return (await this.db.query(`INSERT INTO products(merchant_id,category_id,name,description,price,image_url,is_available) VALUES($1,$2,$3,$4,$5,$6,COALESCE($7,true)) RETURNING *`,[b.merchantId,b.categoryId||null,String(b.name).trim(),b.description||null,price,b.imageUrl||null,b.isAvailable])).rows[0];
   }
   @Get('merchant/inventory/:merchantId') async merchantInventory(@Param('merchantId') merchantId:string,@Headers() h:any){
     await this.merchantActor(h,merchantId);
@@ -445,7 +445,7 @@ class AppController {
     const payment=(await this.db.query('SELECT * FROM payments WHERE id=$1',[p.id])).rows[0];
     return {payment,nextAction:b.method==='CASH'?'NONE':(intent.checkoutUrl?'REDIRECT':'CONNECT_PROVIDER'),checkoutUrl:intent.checkoutUrl||null};
   }
-  @Post('payments/:id/confirm') async confirmPayment(@Headers() h:any,@Param('id') id:string,@Body() b:any){ const userId=this.userId(h); const r=await this.db.query(`UPDATE payments SET status=$1,provider_reference=$2,updated_at=now() WHERE id=$3 AND user_id=$4 RETURNING *`,[b?.success===false?'FAILED':'PAID',b?.providerReference||null,id,userId]); if(!r.rowCount)throw new NotFoundException('عملية الدفع غير موجودة'); return r.rows[0]; }
+  @Post('payments/:id/confirm') async confirmPayment(@Headers() h:any,@Param('id') id:string,@Body() b:any){ const userId=this.userId(h); const p=(await this.db.query('SELECT * FROM payments WHERE id=$1 AND user_id=$2',[id,userId])).rows[0]; if(!p) throw new NotFoundException('عملية الدفع غير موجودة'); if(p.method!=='CASH') throw new ForbiddenException('تأكيد الدفع الإلكتروني يتم من مزود الدفع فقط'); return p; }
   @Get('payments/:id') async payment(@Headers() h:any,@Param('id') id:string){ const r=await this.db.query('SELECT * FROM payments WHERE id=$1 AND user_id=$2',[id,this.userId(h)]); if(!r.rowCount)throw new NotFoundException('عملية الدفع غير موجودة'); return r.rows[0]; }
   @Post('maps/route') async mapsRoute(@Headers() h:any,@Body() b:any){ await this.userId(h); if(!b?.from||!b?.to) throw new BadRequestException('from/to مطلوبان'); return this.integrations.maps.route({lat:Number(b.from.latitude??b.from.lat),lon:Number(b.from.longitude??b.from.lon)},{lat:Number(b.to.latitude??b.to.lat),lon:Number(b.to.longitude??b.to.lon)}); }
   @Post('storage/upload-target') async storageTarget(@Headers() h:any,@Body() b:any){ await this.actor(h,['MERCHANT','RIDER','ADMIN','SUPER_ADMIN']); if(!b?.key||!b?.contentType) throw new BadRequestException('key/contentType مطلوبان'); return this.integrations.storage.createUploadTarget({key:String(b.key),contentType:String(b.contentType)}); }
@@ -564,10 +564,13 @@ class RealtimeGateway {
 
 async function bootstrap(){
   const app=await NestFactory.create(AppModule,{rawBody:true});
+  app.set('trust proxy', 1);
+  app.use((req:any,res:any,next:any)=>{ res.setHeader('X-Content-Type-Options','nosniff'); res.setHeader('X-Frame-Options','DENY'); res.setHeader('Referrer-Policy','no-referrer'); res.setHeader('Permissions-Policy','geolocation=(),camera=(),microphone=()'); next(); });
   app.enableCors({origin:(origin,cb)=>{ if(!origin) return cb(null,true); if(API_ALLOWED_ORIGINS.includes(origin)) return cb(null,true); if(!isProduction && API_ALLOWED_ORIGINS.length===0) return cb(null,true); return cb(new Error('CORS origin denied'),false);}, credentials:true});
   app.setGlobalPrefix('api/v1');
   app.use((req:any,res:any,next:any)=>{
-    const requestId=String(req.headers['x-request-id']||randomUUID());
+    const incoming=String(req.headers['x-request-id']||'');
+    const requestId=/^[0-9a-fA-F-]{20,80}$/.test(incoming) ? incoming : randomUUID();
     req.requestId=requestId; res.setHeader('x-request-id',requestId);
     const started=Date.now();
     res.on('finish',()=>console.log(JSON.stringify({event:'http_request',requestId,method:req.method,path:req.originalUrl,status:res.statusCode,durationMs:Date.now()-started})));
