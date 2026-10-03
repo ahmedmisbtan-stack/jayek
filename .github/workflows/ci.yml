@@ -65,6 +65,8 @@ jobs:
         run: flutter pub get
       - name: Analyze
         run: flutter analyze
+      - name: Test
+        run: flutter test
       - name: Build debug APK
         run: flutter build apk --debug --dart-define=JAYEK_API=https://example.invalid/api/v1
       - name: Build release APK
@@ -110,6 +112,8 @@ jobs:
         run: flutter pub get
       - name: Analyze
         run: flutter analyze
+      - name: Test
+        run: flutter test
       - name: Build debug APK
         run: flutter build apk --debug --dart-define=JAYEK_API=https://example.invalid/api/v1
       - name: Build release APK
