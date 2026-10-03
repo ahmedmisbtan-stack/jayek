@@ -1,0 +1,85 @@
+name: JAYEK Security Smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jayek-security
+  cancel-in-progress: true
+
+jobs:
+  security-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: jayek
+          POSTGRES_USER: jayek
+          POSTGRES_PASSWORD: jayek_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jayek -d jayek"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install API dependencies
+        working-directory: apps/api
+        run: npm install
+
+      - name: Build API
+        working-directory: apps/api
+        run: npm run build
+
+      - name: Initialize database
+        run: PGPASSWORD=jayek_test_password psql -h 127.0.0.1 -U jayek -d jayek -f infra/schema.sql
+
+      - name: Start API
+        working-directory: apps/api
+        env:
+          NODE_ENV: test
+          PORT: 3000
+          DATABASE_URL: postgresql://jayek:jayek_test_password@127.0.0.1:5432/jayek
+          JWT_SECRET: security-smoke-only-secret-change-me-123456789
+          ALLOW_DEV_HEADERS: "false"
+          OTP_PROVIDER: console
+          PUSH_PROVIDER: console
+          MAP_PROVIDER: haversine
+          PAYMENT_PROVIDER: cod
+          STORAGE_PROVIDER: local
+        run: |
+          nohup node dist/main.js > /tmp/jayek-api.log 2>&1 &
+          echo $! > /tmp/jayek-api.pid
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:3000/api/v1/health/ready >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/jayek-api.log
+          exit 1
+
+      - name: Run authorization and input-abuse checks
+        env:
+          BASE_URL: http://127.0.0.1:3000/api/v1
+        run: bash tools/security-smoke.sh
+
+      - name: Show API logs on failure
+        if: failure()
+        run: cat /tmp/jayek-api.log
