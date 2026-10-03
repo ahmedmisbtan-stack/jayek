@@ -144,8 +144,94 @@ class _LoginState extends State<Login> {
     );
   }
 }
-class Home extends StatefulWidget{final Api api;final List<Line> cart;final String village;final ValueChanged<String> onVillage;final VoidCallback onCart;final VoidCallback onLogout;const Home({super.key,required this.api,required this.cart,required this.village,required this.onVillage,required this.onCart,required this.onLogout});@override State<Home> createState()=>_HomeState();}
-class _HomeState extends State<Home>{Map data={};bool loading=true;@override void initState(){super.initState();load();}Future<void> load()async{try{data=Map<String,dynamic>.from(await widget.api.get('/home?village=${Uri.encodeComponent(widget.village)}'));}catch(_){data={};}setState(()=>loading=false);}IconData icon(String s){const m={'restaurant':Icons.restaurant,'shopping_cart':Icons.shopping_cart,'medication':Icons.medication,'eco':Icons.eco,'set_meal':Icons.set_meal,'bakery_dining':Icons.bakery_dining};return m[s]??Icons.storefront;}@override Widget build(BuildContext c){if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator(color:primary)));final cats=List.from(data['categories']??[]),merchants=List.from(data['merchants']??[]),popular=List.from(data['popular']??[]);return Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(backgroundColor:cream,elevation:0,title:const Text('جايك',style:TextStyle(color:primary,fontSize:25,fontWeight:FontWeight.w900)),actions:[IconButton(onPressed:()=>showModalBottomSheet(context:c,builder:(_)=>VillagePicker(current:widget.village,onPick:(v){widget.onVillage(v);Navigator.pop(c);load();})),icon:const Icon(Icons.location_on_outlined,color:primary)),IconButton(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Cart(api:widget.api,cart:widget.cart,onChanged:widget.onCart))),icon:Badge(label:Text('${widget.cart.fold(0,(n,l)=>n+l.qty)}'),child:const Icon(Icons.shopping_cart_outlined,color:primary))]),body:RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[Text('أهلاً بيك 👋',style:Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)),Text('إيه اللي جايك النهارده؟',style:const TextStyle(color:ink)),const SizedBox(height:14),TextField(onSubmitted:(q)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Search(api:widget.api,q:q,village:widget.village,cart:widget.cart,onChanged:widget.onCart))),decoration:InputDecoration(hintText:'ابحث عن مطعم أو منتج...',prefixIcon:const Icon(Icons.search),filled:true,fillColor:Colors.white,border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:BorderSide.none))),const SizedBox(height:18),_title('الخدمات'),GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:cats.length,gridDelegate:const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:3,crossAxisSpacing:10,mainAxisSpacing:10,childAspectRatio:1.1),itemBuilder:(_,i){final x=cats[i];return InkWell(onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>MerchantList(api:widget.api,village:widget.village,cart:widget.cart,onChanged:widget.onCart))),child:Container(decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(18)),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(icon('${x['icon']}'),color:primary,size:29),const SizedBox(height:6),Text('${x['name']}',textAlign:TextAlign.center,style:const TextStyle(fontWeight:FontWeight.w700))])));}),const SizedBox(height:18),Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:primary,borderRadius:BorderRadius.circular(22)),child:const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('طلبك جايك.',style:TextStyle(color:Colors.white,fontSize:22,fontWeight:FontWeight.w900)),SizedBox(height:6),Text('كل اللي محتاجه... جايك لحد بابك.',style:TextStyle(color:Colors.white70))])),const SizedBox(height:18),_title('محلات قريبة'),...merchants.take(6).map((m)=>MerchantTile(m:m,onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Merchant(api:widget.api,id:m['id'],cart:widget.cart,onChanged:widget.onCart))))),const SizedBox(height:10),_title('الأكثر طلبًا'),...popular.map((p)=>ProductTile(p:Map<String,dynamic>.from(p),onAdd:(){widget.cart.add(Line(Map<String,dynamic>.from(p)));widget.onCart();}))])),bottomNavigationBar:NavigationBar(selectedIndex:0,onDestinationSelected:(i){if(i==1)Navigator.push(c,MaterialPageRoute(builder:(_)=>Orders(api:widget.api)));if(i==2)Navigator.push(c,MaterialPageRoute(builder:(_)=>Notifications(api:widget.api)));if(i==3)Navigator.push(c,MaterialPageRoute(builder:(_)=>Profile(api:widget.api,onLogout:widget.onLogout)));},destinations:const[NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'الرئيسية'),NavigationDestination(icon:Icon(Icons.receipt_long_outlined),label:'طلباتي'),NavigationDestination(icon:Icon(Icons.notifications_none),label:'الإشعارات'),NavigationDestination(icon:Icon(Icons.person_outline),label:'حسابي')]));}Widget _title(String s)=>Padding(padding:const EdgeInsets.only(bottom:10),child:Text(s,style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:ink)));))}
+class Home extends StatefulWidget {
+  final Api api;
+  final List<Line> cart;
+  final String village;
+  final ValueChanged<String> onVillage;
+  final VoidCallback onCart;
+  final VoidCallback onLogout;
+  const Home({super.key, required this.api, required this.cart, required this.village, required this.onVillage, required this.onCart, required this.onLogout});
+  @override State<Home> createState() => _HomeState();
+}
+
+class _HomeState extends State<Home> {
+  Map<String, dynamic> data = {};
+  bool loading = true;
+
+  @override void initState() { super.initState(); load(); }
+
+  Future<void> load() async {
+    try {
+      final result = await widget.api.get('/home?village=${Uri.encodeComponent(widget.village)}');
+      if (!mounted) return;
+      setState(() { data = Map<String, dynamic>.from(result); loading = false; });
+    } catch (_) {
+      if (mounted) setState(() { data = {}; loading = false; });
+    }
+  }
+
+  IconData icon(String value) {
+    const icons = {'restaurant': Icons.restaurant, 'shopping_cart': Icons.shopping_cart, 'medication': Icons.medication, 'eco': Icons.eco, 'set_meal': Icons.set_meal, 'bakery_dining': Icons.bakery_dining};
+    return icons[value] ?? Icons.storefront;
+  }
+
+  Widget sectionTitle(String value) => Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: ink)));
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator(color: primary)));
+    final categories = List.from(data['categories'] ?? []);
+    final merchants = List.from(data['merchants'] ?? []);
+    final popular = List.from(data['popular'] ?? []);
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: cream,
+          title: const Text('جايك', style: TextStyle(color: primary, fontSize: 25, fontWeight: FontWeight.w900)),
+          actions: [
+            IconButton(onPressed: () => showModalBottomSheet(context: context, builder: (_) => VillagePicker(current: widget.village, onPick: (value) { widget.onVillage(value); Navigator.pop(context); load(); })), icon: const Icon(Icons.location_on_outlined, color: primary)),
+            IconButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Cart(api: widget.api, cart: widget.cart, onChanged: widget.onCart))), icon: Badge(label: Text('${widget.cart.fold<int>(0, (sum, line) => sum + line.qty)}'), child: const Icon(Icons.shopping_cart_outlined, color: primary))),
+          ],
+        ),
+        body: RefreshIndicator(
+          onRefresh: load,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text('أهلاً بيك 👋', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+              const Text('إيه اللي جايك النهارده؟', style: TextStyle(color: ink)),
+              const SizedBox(height: 14),
+              TextField(onSubmitted: (query) { Navigator.push(context, MaterialPageRoute(builder: (_) => Search(api: widget.api, q: query, village: widget.village, cart: widget.cart, onChanged: widget.onCart))); }, decoration: InputDecoration(hintText: 'ابحث عن مطعم أو منتج...', prefixIcon: const Icon(Icons.search), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none))),
+              const SizedBox(height: 18),
+              sectionTitle('الخدمات'),
+              GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: categories.length, gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.1), itemBuilder: (_, index) { final item = categories[index]; return InkWell(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MerchantList(api: widget.api, village: widget.village, cart: widget.cart, onChanged: widget.onCart))), child: Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon('${item['icon']}'), color: primary, size: 29), const SizedBox(height: 6), Text('${item['name']}', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700))]))); }),
+              const SizedBox(height: 18),
+              Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: primary, borderRadius: BorderRadius.circular(22)), child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('طلبك جايك.', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)), SizedBox(height: 6), Text('كل اللي محتاجه... جايك لحد بابك.', style: TextStyle(color: Colors.white70))])),
+              const SizedBox(height: 18),
+              sectionTitle('محلات قريبة'),
+              ...merchants.take(6).map((item) => MerchantTile(m: item, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Merchant(api: widget.api, id: item['id'].toString(), cart: widget.cart, onChanged: widget.onCart))))),
+              const SizedBox(height: 10),
+              sectionTitle('الأكثر طلبًا'),
+              ...popular.map((item) => ProductTile(p: Map<String, dynamic>.from(item), onAdd: () { widget.cart.add(Line(Map<String, dynamic>.from(item))); widget.onCart(); })),
+            ],
+          ),
+        ),
+        bottomNavigationBar: NavigationBar(selectedIndex: 0, onDestinationSelected: (index) {
+          if (index == 1) Navigator.push(context, MaterialPageRoute(builder: (_) => Orders(api: widget.api)));
+          if (index == 2) Navigator.push(context, MaterialPageRoute(builder: (_) => Notifications(api: widget.api)));
+          if (index == 3) Navigator.push(context, MaterialPageRoute(builder: (_) => Profile(api: widget.api, onLogout: widget.onLogout)));
+        }, destinations: const [
+          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'الرئيسية'),
+          NavigationDestination(icon: Icon(Icons.receipt_long_outlined), label: 'طلباتي'),
+          NavigationDestination(icon: Icon(Icons.notifications_none), label: 'الإشعارات'),
+          NavigationDestination(icon: Icon(Icons.person_outline), label: 'حسابي'),
+        ]),
+      ),
+    );
+  }
+}
 class VillagePicker extends StatelessWidget{final String current;final ValueChanged<String> onPick;const VillagePicker({super.key,required this.current,required this.onPick});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:SafeArea(child:Padding(padding:const EdgeInsets.all(18),child:Column(mainAxisSize:MainAxisSize.min,children:[const Text('اختار منطقتك',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),for(final v in ['الديسمي','الصف','القرى المجاورة'])ListTile(title:Text(v),leading:Icon(v==current?Icons.radio_button_checked:Icons.radio_button_off,color:primary),onTap:()=>onPick(v))]))));}
 class MerchantTile extends StatelessWidget{final Map m;final VoidCallback onTap;const MerchantTile({super.key,required this.m,required this.onTap});@override Widget build(BuildContext c)=>Card(elevation:0,child:ListTile(onTap:onTap,leading:CircleAvatar(backgroundColor:secondary.withOpacity(.18),child:const Icon(Icons.storefront,color:primary)),title:Text('${m['name']}',style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text('⭐ ${m['rating']??'—'}  •  ${m['delivery_minutes']??'—'} دقيقة  •  ${m['delivery_fee']??0} ج.م'),trailing:const Icon(Icons.chevron_left)));}
 class ProductTile extends StatelessWidget{final Map<String,dynamic> p;final VoidCallback onAdd;const ProductTile({super.key,required this.p,required this.onAdd});@override Widget build(BuildContext c)=>Card(elevation:0,child:ListTile(leading:Container(width:58,height:58,decoration:BoxDecoration(color:secondary.withOpacity(.15),borderRadius:BorderRadius.circular(14)),child:const Icon(Icons.fastfood,color:primary)),title:Text('${p['name']}',style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text('${p['price']} ج.م'),trailing:FilledButton(onPressed:onAdd,style:FilledButton.styleFrom(backgroundColor:primary),child:const Text('أضف'))));}
