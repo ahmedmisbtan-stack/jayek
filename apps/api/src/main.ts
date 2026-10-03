@@ -538,6 +538,22 @@ class Db {
 }
 
 
+@WebSocketGateway({ namespace: '/realtime', cors: { origin: process.env.CORS_ORIGINS ? API_ALLOWED_ORIGINS : (!isProduction) } })
+class RealtimeGateway {
+  @WebSocketServer() server!: Server;
+  constructor(private db:Db){
+    realtime.on('order:update', (event:any) => { if(this.server) this.server.to(`order:${event.orderId}`).emit('order:update', event); });
+    realtime.on('order:location', (event:any) => { if(this.server) this.server.to(`order:${event.orderId}`).emit('order:location', event); });
+  }
+  @SubscribeMessage('order:join') async join(@MessageBody() body:any, @ConnectedSocket() socket:Socket){
+    if(!body?.orderId) return {ok:false};
+    const token=String(body?.accessToken||''); const p=verifyToken(token); if(!p?.sub) return {ok:false,error:'unauthorized'}; const access=await this.db.query('SELECT 1 FROM orders WHERE id=$1 AND user_id=$2',[body.orderId,p.sub]); if(!access.rowCount) return {ok:false,error:'forbidden'}; socket.data.userId=p.sub; socket.join(`order:${body.orderId}`); return {ok:true,orderId:body.orderId};
+  }
+  @SubscribeMessage('order:leave') leave(@MessageBody() body:any, @ConnectedSocket() socket:Socket){
+    if(body?.orderId) socket.leave(`order:${body.orderId}`); return {ok:true};
+  }
+}
+
 
 @Module({controllers:[AppController],providers:[Db,RealtimeGateway,IntegrationService]}) class AppModule{}
 
@@ -574,28 +590,5 @@ async function bootstrap(){
   await app.listen(Number(process.env.PORT||3000));
   console.log(JSON.stringify({event:'server_started',version:API_VERSION,port:Number(process.env.PORT||3000),nodeEnv:process.env.NODE_ENV||'development'}));
 }
-bootstrap();@Injectable()
-class Db {
-  pool = new Pool({ connectionString:process.env.DATABASE_URL || 'postgresql://jayek:jayek_dev_password@localhost:5432/jayek' });
-  query<T=any>(text:string, params:any[]=[]){ return this.pool.query<T>(text,params); }
-  async tx<T>(fn:(c:PoolClient)=>Promise<T>):Promise<T>{ const c=await this.pool.connect(); try{await c.query('BEGIN'); const r=await fn(c); await c.query('COMMIT'); return r;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();} }
-}
 
-
-
-@WebSocketGateway({ namespace: '/realtime', cors: { origin: process.env.CORS_ORIGINS ? API_ALLOWED_ORIGINS : (!isProduction) } })
-class RealtimeGateway {
-  @WebSocketServer() server!: Server;
-  constructor(private db:Db){
-    realtime.on('order:update', (event:any) => { if(this.server) this.server.to(`order:${event.orderId}`).emit('order:update', event); });
-    realtime.on('order:location', (event:any) => { if(this.server) this.server.to(`order:${event.orderId}`).emit('order:location', event); });
-  }
-  @SubscribeMessage('order:join') async join(@MessageBody() body:any, @ConnectedSocket() socket:Socket){
-    if(!body?.orderId) return {ok:false};
-    const token=String(body?.accessToken||''); const p=verifyToken(token); if(!p?.sub) return {ok:false,error:'unauthorized'}; const access=await this.db.query('SELECT 1 FROM orders WHERE id=$1 AND user_id=$2',[body.orderId,p.sub]); if(!access.rowCount) return {ok:false,error:'forbidden'}; socket.data.userId=p.sub; socket.join(`order:${body.orderId}`); return {ok:true,orderId:body.orderId};
-  }
-  @SubscribeMessage('order:leave') leave(@MessageBody() body:any, @ConnectedSocket() socket:Socket){
-    if(body?.orderId) socket.leave(`order:${body.orderId}`); return {ok:true};
-  }
-}
 bootstrap();
