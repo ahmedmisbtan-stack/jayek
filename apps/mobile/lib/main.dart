@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
 
 const primary=Color(0xFF176B4D), secondary=Color(0xFF65B87A), accent=Color(0xFFF39A3D), cream=Color(0xFFFFF8EA), ink=Color(0xFF202522);
 const apiBase=String.fromEnvironment('JAYEK_API',defaultValue:'http://10.0.2.2:3000/api/v1');
@@ -44,6 +45,15 @@ class Api{
   Future<dynamic> patch(String p,Map<String,dynamic> b)=>call('PATCH',p,b);
 }
 class Line{final Map<String,dynamic> p;int qty;Line(this.p,[this.qty=1]);double get total=>(p['price'] as num).toDouble()*qty;}
+bool addProductToCart(BuildContext context, List<Line> cart, Map<String,dynamic> product, VoidCallback onChanged){
+  final merchantId=product['merchant_id']?.toString();
+  if(merchantId==null){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('بيانات المتجر غير صالحة')));return false;}
+  if(cart.isNotEmpty && cart.first.p['merchant_id']?.toString()!=merchantId){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('السلة لمتجر واحد فقط. فضّي السلة الأول لو عايز تطلب من متجر تاني.')));return false;}
+  final existing=cart.where((x)=>x.p['id']?.toString()==product['id']?.toString()).toList();
+  if(existing.isNotEmpty){existing.first.qty++;}else{cart.add(Line(Map<String,dynamic>.from(product)));}
+  onChanged(); return true;
+}
+
 void main()=>runApp(const App());
 class App extends StatefulWidget{const App({super.key});@override State<App> createState()=>_AppState();}
 class _AppState extends State<App>{
@@ -214,7 +224,7 @@ class _HomeState extends State<Home> {
               ...merchants.take(6).map((item) => MerchantTile(m: item, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Merchant(api: widget.api, id: item['id'].toString(), cart: widget.cart, onChanged: widget.onCart))))),
               const SizedBox(height: 10),
               sectionTitle('الأكثر طلبًا'),
-              ...popular.map((item) => ProductTile(p: Map<String, dynamic>.from(item), onAdd: () { widget.cart.add(Line(Map<String, dynamic>.from(item))); widget.onCart(); })),
+              ...popular.map((item) => ProductTile(p: Map<String, dynamic>.from(item), onAdd: () { addProductToCart(context, widget.cart, Map<String,dynamic>.from(item), widget.onCart); })),
             ],
           ),
         ),
@@ -296,7 +306,7 @@ class _SearchState extends State<Search> {
         ...merchants.map((m) => MerchantTile(m: Map<String, dynamic>.from(m as Map), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Merchant(api: widget.api, id: m['id'].toString(), cart: widget.cart, onChanged: widget.onChanged))))),
         const SizedBox(height: 10),
         const Text('المنتجات', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-        ...products.map((p) => ProductTile(p: Map<String, dynamic>.from(p), onAdd: () { widget.cart.add(Line(Map<String, dynamic>.from(p as Map))); widget.onChanged(); })),
+        ...products.map((p) => ProductTile(p: Map<String, dynamic>.from(p), onAdd: () { addProductToCart(context, widget.cart, Map<String,dynamic>.from(p as Map), widget.onChanged); })),
       ]),
     ));
   }
