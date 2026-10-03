@@ -58,4 +58,3 @@ class _RiderHomeState extends State<RiderHome>{
 }
 class _ProofDialog extends StatefulWidget{ @override State<_ProofDialog> createState()=>_ProofDialogState(); }
 class _ProofDialogState extends State<_ProofDialog>{final c=TextEditingController();@override Widget build(BuildContext context)=>AlertDialog(title:const Text('إثبات التسليم'),content:TextField(controller:c,decoration:const InputDecoration(labelText:'رابط صورة/إثبات التسليم',hintText:'https://...'),keyboardType:TextInputType.url),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('إلغاء')),FilledButton(onPressed:()=>Navigator.pop(context,c.text.trim().isEmpty?null:c.text.trim()),child:const Text('تأكيد'))]);}
-}
