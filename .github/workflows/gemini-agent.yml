@@ -40,24 +40,67 @@ jobs:
             exit 1
           fi
 
-          task=$(cat "$TASK_FILE")
           python - <<'PY'
           import json, os
           task = open(os.environ["TASK_FILE"], encoding="utf-8").read()
           body = {
               "agent": "antigravity-preview-09-2026",
               "input": [{"type": "text", "text": task}],
-              "environment": {"type": "remote"}
+              "environment": {"type": "remote"},
+              "background": True
           }
           open("/tmp/request.json", "w", encoding="utf-8").write(json.dumps(body))
           PY
 
-          curl -sS -X POST "https://generativelanguage.googleapis.com/v1beta/interactions"             -H "Content-Type: application/json"             -H "x-goog-api-key: $GEMINI_API_KEY"             --data-binary @/tmp/request.json             > /tmp/response.json
+          curl -sS --fail-with-body -X POST "https://generativelanguage.googleapis.com/v1beta/interactions"             -H "Content-Type: application/json"             -H "x-goog-api-key: $GEMINI_API_KEY"             -H "Api-Revision: 2026-05-20"             --data-binary @/tmp/request.json             > /tmp/response.json
+
+          python - <<'PY'
+          import json
+          data=json.load(open("/tmp/response.json", encoding="utf-8"))
+          interaction_id=data.get("id")
+          if not interaction_id:
+              raise SystemExit("Gemini did not return an interaction id: "+json.dumps(data, ensure_ascii=False))
+          print("Started Gemini interaction:", interaction_id)
+          open("/tmp/interaction_id","w",encoding="utf-8").write(interaction_id)
+          PY
+
+          deadline=$(( $(date +%s) + 1800 ))
+          while true; do
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "Gemini interaction timed out after 30 minutes."
+              exit 1
+            fi
+
+            curl -sS --fail-with-body "https://generativelanguage.googleapis.com/v1beta/interactions/$(cat /tmp/interaction_id)"               -H "x-goog-api-key: $GEMINI_API_KEY"               -H "Api-Revision: 2026-05-20"               > /tmp/response.json
+
+            status=$(python - <<'PY'
+          import json
+          print(json.load(open("/tmp/response.json", encoding="utf-8")).get("status",""))
+          PY
+            )
+            echo "Gemini status: $status"
+
+            if [ "$status" = "completed" ]; then
+              break
+            fi
+            if [ "$status" = "failed" ] || [ "$status" = "cancelled" ]; then
+              cat /tmp/response.json
+              exit 1
+            fi
+            sleep 10
+          done
 
           python - <<'PY'
           import json
           data=json.load(open("/tmp/response.json", encoding="utf-8"))
           text=data.get("output_text")
+          if not text:
+              parts=[]
+              for step in data.get("steps", []):
+                  for item in step.get("content", []):
+                      if item.get("type") == "text":
+                          parts.append(item.get("text",""))
+              text="\n\n".join(parts).strip()
           if not text:
               text=json.dumps(data, ensure_ascii=False, indent=2)
           open("gemini_tasks/results/latest.md","w",encoding="utf-8").write(
