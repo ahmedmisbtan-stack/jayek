@@ -46,7 +46,7 @@ jobs:
           body = {
               "agent": "antigravity-preview-09-2026",
               "input": [{"type": "text", "text": task}],
-              "environment": {"type": "remote"},
+              "environment": {                  "type": "remote",                  "sources": [                      {                          "type": "repository",                          "source": "https://github.com/ahmedmisbtan-stack/jayek",                          "target": "/jayek"                      }                  ]              },
               "background": True
           }
           open("/tmp/request.json", "w", encoding="utf-8").write(json.dumps(body))
