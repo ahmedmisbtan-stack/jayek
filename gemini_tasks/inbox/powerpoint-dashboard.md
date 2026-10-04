@@ -1,23 +1,59 @@
-# Task: Build the PowerPoint and dashboard artifacts for the Sales Analysis portfolio
+# EXECUTE NOW: Create the requested PowerPoint and dashboard
 
-Work directly from the mounted repository at /jayek, especially /jayek/portfolio/sales-analysis.
+You are being asked to IMPLEMENT, not inspect, review, or propose.
 
-The goal is to create polished beginner-level portfolio deliverables and place them in the repository.
+Work directly in the mounted repository at /jayek/portfolio/sales-analysis.
 
-Create:
-1. A PowerPoint presentation for the Sales Analysis project.
-2. A dashboard deliverable that is actually usable/viewable, not just a text description or fake screenshot.
+IMPORTANT:
+- The requested deliverables do NOT exist yet. Your job is to CREATE them.
+- Do not stop after inspecting the repository.
+- Do not return recommendations instead of files.
+- Do not merely describe what could be done.
+- Continue working until the files are actually created and saved in the repository.
 
-Requirements:
-- Inspect the real sales_data.csv and existing analysis files before creating anything.
-- Use only verified metrics from the dataset.
-- Keep the project explicitly beginner-level and label the dataset as practice/synthetic where appropriate.
-- The PowerPoint should include: title, dataset/project overview, KPI summary, revenue by month, revenue by category, revenue by city, top products, key observations, and a short conclusion.
-- The dashboard should include at minimum: Total Revenue, Total Units, Orders, Average Order Value, Revenue by Month, Revenue by Category, Revenue by City, and Top Products.
-- Prefer an interactive dashboard if a practical portable format can be produced in the available environment (for example HTML). If creating a Power BI-specific file is not feasible in the remote environment, do NOT fake a .pbix. Create the best genuinely usable dashboard artifact available and clearly document its format.
-- Add both deliverables to /jayek/portfolio/sales-analysis.
-- Update README.md with the exact filenames and how to view/use them.
-- Do not modify the source dataset incorrectly and do not invent metrics.
-- Validate the generated files if possible (for example, open/read the generated HTML and verify the PPTX structure).
-- Commit the completed artifacts and README changes to main.
-- Return a concise report listing the exact files created, key metrics used, validation performed, and commit SHA.
+Create these deliverables:
+1. A real PowerPoint presentation (.pptx) for the Sales Analysis portfolio project.
+2. A real usable dashboard artifact, preferably a responsive HTML dashboard (.html). Do NOT create a fake .pbix.
+
+PowerPoint must contain:
+- Title
+- Project/dataset overview
+- KPI summary
+- Revenue by month
+- Revenue by category
+- Revenue by city
+- Top products
+- Key observations
+- Conclusion
+
+Dashboard must contain:
+- Total Revenue
+- Total Units
+- Orders
+- Average Order Value
+- Revenue by Month
+- Revenue by Category
+- Revenue by City
+- Top Products
+- Clear charts/visuals, not only plain text
+- Mobile-friendly layout where practical
+
+Use the real sales_data.csv and calculate/verify all metrics yourself. Do not invent numbers. Keep the dataset clearly labeled as practice/synthetic.
+
+Implementation requirements:
+- Create the .pptx using an available presentation-generation library such as python-pptx.
+- Create the HTML dashboard with actual visualizations (for example HTML/CSS/JavaScript and Chart.js, or another available approach).
+- Put both files under /jayek/portfolio/sales-analysis/.
+- Update README.md with the EXACT filenames and simple instructions for opening the dashboard and viewing the PowerPoint.
+- Validate that the PPTX exists and has a valid ZIP/PPTX structure.
+- Validate that the HTML exists and contains the required KPI/chart sections.
+- Commit the created files and README changes to main.
+
+Completion rule:
+You are NOT finished if you only produce a report.
+You are finished ONLY after the .pptx and dashboard file physically exist in the repository and are committed to main.
+
+At the end, return:
+- exact filenames created
+- validation performed
+- commit SHA
