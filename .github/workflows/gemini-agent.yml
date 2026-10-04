@@ -105,9 +105,12 @@ jobs:
               text="\n\n".join(parts).strip()
           if not text:
               text=json.dumps(data, ensure_ascii=False, indent=2)
-          open("gemini_tasks/results/latest.md","w",encoding="utf-8").write(
+          import os
+          result_path = f"gemini_tasks/results/run-{os.environ["GITHUB_RUN_ID"]}.md"
+          open(result_path,"w",encoding="utf-8").write(
               "# Gemini Result\n\n"+text+"\n"
           )
+          print("Result written to:", result_path)
           PY
 
       - name: Commit result
@@ -115,7 +118,7 @@ jobs:
         run: |
           git config user.name "gemini-agent"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add gemini_tasks/results/latest.md
+          git add gemini_tasks/results/
           git commit -m "Run Gemini agent task" || exit 0
           git pull --rebase origin main
           git push origin HEAD:main
