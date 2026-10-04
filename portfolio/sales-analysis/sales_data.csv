@@ -1,0 +1,26 @@
+Date,City,Category,Product,Units,Unit_Price_EGP,Revenue_EGP
+2026-01-03,Cairo,Electronics,Wireless Mouse,8,450,3600
+2026-01-05,Giza,Home,Desk Lamp,6,320,1920
+2026-01-08,Cairo,Electronics,Keyboard,5,700,3500
+2026-01-11,Giza,Office,Notebook Set,15,120,1800
+2026-01-14,Qalyubia,Home,Storage Box,10,210,2100
+2026-01-18,Cairo,Electronics,USB Hub,7,380,2660
+2026-01-21,Giza,Office,Desk Organizer,9,180,1620
+2026-01-24,Qalyubia,Electronics,Headphones,4,950,3800
+2026-01-27,Cairo,Home,Water Bottle,12,160,1920
+2026-01-30,Giza,Electronics,Webcam,3,1200,3600
+2026-02-02,Cairo,Electronics,Wireless Mouse,11,450,4950
+2026-02-06,Giza,Home,Desk Lamp,8,320,2560
+2026-02-10,Qalyubia,Office,Notebook Set,18,120,2160
+2026-02-13,Cairo,Electronics,Keyboard,6,700,4200
+2026-02-17,Giza,Office,Desk Organizer,12,180,2160
+2026-02-20,Qalyubia,Home,Storage Box,14,210,2940
+2026-02-24,Cairo,Electronics,USB Hub,10,380,3800
+2026-02-27,Giza,Electronics,Headphones,5,950,4750
+2026-03-03,Cairo,Home,Water Bottle,16,160,2560
+2026-03-07,Giza,Electronics,Webcam,4,1200,4800
+2026-03-11,Qalyubia,Electronics,Wireless Mouse,13,450,5850
+2026-03-15,Cairo,Home,Desk Lamp,10,320,3200
+2026-03-19,Giza,Electronics,Keyboard,7,700,4900
+2026-03-23,Qalyubia,Office,Notebook Set,20,120,2400
+2026-03-27,Cairo,Office,Desk Organizer,14,180,2520
