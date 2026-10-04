@@ -30,3 +30,6 @@ This is a learning dataset, not real company data.
 - analysis.py
 - analysis.sql
 - POWER_BI_GUIDE.md
+- POWER_BI_DESIGN.md
+- sales_dashboard_reference.svg
+- NOTES.md
