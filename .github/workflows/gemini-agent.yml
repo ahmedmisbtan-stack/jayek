@@ -1,0 +1,74 @@
+name: Gemini Agent Bridge
+
+on:
+  push:
+    paths:
+      - "gemini_tasks/inbox/**"
+
+permissions:
+  contents: write
+
+jobs:
+  run-gemini:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Find latest task
+        id: task
+        shell: bash
+        run: |
+          file=$(find gemini_tasks/inbox -type f -name '*.md' | sort | tail -n 1)
+          if [ -z "$file" ]; then
+            echo "No task found"
+            exit 1
+          fi
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Send task to Gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TASK_FILE: ${{ steps.task.outputs.file }}
+        shell: bash
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "GEMINI_API_KEY secret is not configured."
+            exit 1
+          fi
+
+          task=$(cat "$TASK_FILE")
+          python - <<'PY'
+          import json, os
+          task = open(os.environ["TASK_FILE"], encoding="utf-8").read()
+          body = {
+              "agent": "antigravity-preview-09-2026",
+              "input": [{"type": "text", "text": task}],
+              "environment": {"type": "remote"}
+          }
+          open("/tmp/request.json", "w", encoding="utf-8").write(json.dumps(body))
+          PY
+
+          curl -sS -X POST "https://generativelanguage.googleapis.com/v1beta/interactions"             -H "Content-Type: application/json"             -H "x-goog-api-key: $GEMINI_API_KEY"             --data-binary @/tmp/request.json             > /tmp/response.json
+
+          python - <<'PY'
+          import json
+          data=json.load(open("/tmp/response.json", encoding="utf-8"))
+          text=data.get("output_text")
+          if not text:
+              text=json.dumps(data, ensure_ascii=False, indent=2)
+          open("gemini_tasks/results/latest.md","w",encoding="utf-8").write(
+              "# Gemini Result\n\n"+text+"\n"
+          )
+          PY
+
+      - name: Commit result
+        shell: bash
+        run: |
+          git config user.name "gemini-agent"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add gemini_tasks/results/latest.md
+          git commit -m "Run Gemini agent task" || exit 0
+          git push
