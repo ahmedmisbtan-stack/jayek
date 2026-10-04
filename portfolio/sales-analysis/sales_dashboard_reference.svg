@@ -1,21 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760">
 <rect width="1200" height="760" fill="#f8fafc"/>
-<text x="60" y="70" font-family="Arial" font-size="34" font-weight="700" fill="#0f172a">Sales Overview</text>
-<text x="60" y="102" font-family="Arial" font-size="16" fill="#64748b">Beginner sales dashboard • Jan–Mar 2026</text>
-<rect x="60" y="140" width="240" height="110" rx="12" fill="white" stroke="#e2e8f0"/><text x="80" y="178" font-family="Arial" font-size="15" fill="#64748b">Total Revenue</text><text x="80" y="218" font-family="Arial" font-size="27" font-weight="700" fill="#0f766e">80,270 EGP</text><rect x="340" y="140" width="240" height="110" rx="12" fill="white" stroke="#e2e8f0"/><text x="360" y="178" font-family="Arial" font-size="15" fill="#64748b">Total Units</text><text x="360" y="218" font-family="Arial" font-size="27" font-weight="700" fill="#0f766e">247</text><rect x="620" y="140" width="240" height="110" rx="12" fill="white" stroke="#e2e8f0"/><text x="640" y="178" font-family="Arial" font-size="15" fill="#64748b">Orders</text><text x="640" y="218" font-family="Arial" font-size="27" font-weight="700" fill="#0f766e">25</text><rect x="900" y="140" width="240" height="110" rx="12" fill="white" stroke="#e2e8f0"/><text x="920" y="178" font-family="Arial" font-size="15" fill="#64748b">Average Order</text><text x="920" y="218" font-family="Arial" font-size="27" font-weight="700" fill="#0f766e">3,211 EGP</text>
-<rect x="60" y="290" width="520" height="190" rx="12" fill="white" stroke="#e2e8f0"/>
-<text x="85" y="325" font-family="Arial" font-size="19" font-weight="700" fill="#0f172a">Revenue by Category</text>
-<rect x="95" y="370" width="350" height="25" fill="#0f766e"/><text x="460" y="390" font-family="Arial" font-size="14" fill="#334155">Electronics</text>
-<rect x="95" y="415" width="255" height="25" fill="#06b6d4"/><text x="365" y="435" font-family="Arial" font-size="14" fill="#334155">Home</text>
-<rect x="620" y="290" width="520" height="190" rx="12" fill="white" stroke="#e2e8f0"/>
-<text x="645" y="325" font-family="Arial" font-size="19" font-weight="700" fill="#0f172a">Revenue by City</text>
-<rect x="655" y="370" width="330" height="25" fill="#0f766e"/><text x="1000" y="390" font-family="Arial" font-size="14" fill="#334155">Giza</text>
-<rect x="655" y="415" width="260" height="25" fill="#06b6d4"/><text x="930" y="435" font-family="Arial" font-size="14" fill="#334155">Cairo</text>
-<rect x="60" y="510" width="1080" height="190" rx="12" fill="white" stroke="#e2e8f0"/>
-<text x="85" y="545" font-family="Arial" font-size="19" font-weight="700" fill="#0f172a">Top Products</text>
-<text x="95" y="595" font-family="Arial" font-size="16" fill="#334155">1. Wireless Mouse</text>
-<text x="95" y="630" font-family="Arial" font-size="16" fill="#334155">2. Laptop Stand</text>
-<text x="95" y="665" font-family="Arial" font-size="16" fill="#334155">3. Keyboard</text>
-<text x="650" y="595" font-family="Arial" font-size="15" fill="#64748b">Reference layout only — not an actual Power BI file.</text>
-<text x="650" y="630" font-family="Arial" font-size="15" fill="#64748b">The project is intentionally beginner-level.</text>
+<text x="60" y="70" font-family="Arial" font-size="34" font-weight="700">Sales Overview</text>
+<text x="60" y="102" font-family="Arial" font-size="16">Beginner sales dashboard - Jan-Mar 2026</text>
+<text x="80" y="178" font-family="Arial" font-size="15">Total Revenue</text><text x="80" y="218" font-size="27">80,270 EGP</text>
+<text x="360" y="178" font-family="Arial" font-size="15">Total Units</text><text x="360" y="218" font-size="27">247</text>
+<text x="640" y="178" font-family="Arial" font-size="15">Orders</text><text x="640" y="218" font-size="27">25</text>
+<text x="920" y="178" font-family="Arial" font-size="15">Average Order</text><text x="920" y="218" font-size="27">3,211 EGP</text>
+<text x="85" y="325" font-size="19" font-weight="700">Revenue by Category</text>
+<text x="95" y="370" font-size="16">Electronics - highest revenue</text>
+<text x="645" y="325" font-size="19" font-weight="700">Revenue by Month</text>
+<text x="655" y="375" font-size="15">Jan 2026: 26,520 EGP</text>
+<text x="655" y="415" font-size="15">Feb 2026: 27,520 EGP</text>
+<text x="655" y="455" font-size="15">Mar 2026: 26,230 EGP</text>
+<text x="85" y="545" font-size="19" font-weight="700">Top Products</text>
+<text x="95" y="595" font-size="16">1. Wireless Mouse - 14,400 EGP</text>
+<text x="95" y="630" font-size="16">2. Keyboard - 12,600 EGP</text>
+<text x="95" y="665" font-size="16">3. Headphones - 8,550 EGP</text>
+<text x="650" y="595" font-size="15">City revenue: Cairo 32,910; Giza 28,110; Qalyubia 19,250 EGP.</text>
+<text x="650" y="630" font-size="15">Reference layout only - not an actual Power BI file.</text>
 </svg>
