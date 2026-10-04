@@ -90,6 +90,8 @@ jobs:
             sleep 10
           done
 
+          mkdir -p gemini_tasks/results
+
           python - <<'PY'
           import json
           data=json.load(open("/tmp/response.json", encoding="utf-8"))
