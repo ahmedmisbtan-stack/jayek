@@ -1,26 +1,81 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sales Analysis Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-body{font-family:Arial,sans-serif;margin:0;background:#f8fafc;color:#0f172a}.wrap{max-width:1100px;margin:auto;padding:24px}
-h1{margin-bottom:4px}.muted{color:#64748b}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0}.card,.panel{background:white;border-radius:14px;padding:18px;box-shadow:0 2px 10px #0001}.kpi{font-size:28px;font-weight:700;color:#0f766e}.charts{display:grid;grid-template-columns:1fr 1fr;gap:18px}.panel{min-height:320px}.wide{grid-column:1/-1}
-@media(max-width:700px){.grid,.charts{grid-template-columns:1fr}.kpi{font-size:24px}}
-</style></head><body><div class="wrap">
-<h1>Sales Analysis Dashboard</h1><div class="muted">Beginner practice dataset • January–March 2026 • Synthetic learning data</div>
+*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;background:#f8fafc;color:#0f172a}.wrap{max-width:1180px;margin:auto;padding:24px}h1{margin:0 0 4px}.muted{color:#64748b}.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0}.toolbar label{font-size:13px;color:#475569}.toolbar select{display:block;margin-top:5px;padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:18px 0}.card,.panel{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 10px #0001}.card small{color:#64748b}.kpi{font-size:28px;font-weight:700;margin-top:7px}.charts{display:grid;grid-template-columns:1fr 1fr;gap:18px}.panel{height:350px}.wide{grid-column:1/-1}.footer{margin-top:20px;font-size:12px;color:#64748b}.status{font-size:13px;margin-top:8px;color:#475569}@media(max-width:700px){.wrap{padding:14px}.grid,.charts{grid-template-columns:1fr}.panel{height:320px}.kpi{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Sales Analysis Dashboard</h1>
+<div class="muted">Beginner portfolio project • synthetic learning data • January–March 2026</div>
+<div class="toolbar">
+<label>Date
+<select id="dateFilter"><option value="all">All dates</option></select></label>
+<label>City
+<select id="cityFilter"><option value="all">All cities</option></select></label>
+<label>Category
+<select id="categoryFilter"><option value="all">All categories</option></select></label>
+</div>
+<div class="status" id="status">Loading sales_data.csv…</div>
 <div class="grid">
-<div class="card">Revenue<div class="kpi">80,270 EGP</div></div><div class="card">Units<div class="kpi">247</div></div>
-<div class="card">Orders<div class="kpi">25</div></div><div class="card">Average Order Value<div class="kpi">3,211 EGP</div></div>
-</div><div class="charts">
+<div class="card"><small>Total Revenue</small><div class="kpi" id="revenue">—</div></div>
+<div class="card"><small>Total Units</small><div class="kpi" id="units">—</div></div>
+<div class="card"><small>Orders</small><div class="kpi" id="orders">—</div></div>
+<div class="card"><small>Average Order Value</small><div class="kpi" id="aov">—</div></div>
+</div>
+<div class="charts">
 <div class="panel"><h3>Revenue by Month</h3><canvas id="month"></canvas></div>
 <div class="panel"><h3>Revenue by Category</h3><canvas id="cat"></canvas></div>
 <div class="panel"><h3>Revenue by City</h3><canvas id="city"></canvas></div>
-<div class="panel"><h3>Top Products</h3><canvas id="prod"></canvas></div>
+<div class="panel"><h3>Top 5 Products</h3><canvas id="prod"></canvas></div>
 </div>
-</div><script>
-const base={responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}};
-new Chart(document.getElementById('month'),{type:'bar',data:{labels:['January','February','March'],datasets:[{label:'Revenue (EGP)',data:[26520,27520,26230]}]},options:base});
-new Chart(document.getElementById('cat'),{type:'doughnut',data:{labels:['Electronics','Home','Office'],datasets:[{data:[50410,17200,12660]}]},options:base});
-new Chart(document.getElementById('city'),{type:'bar',data:{labels:['Cairo','Giza','Qalyubia'],datasets:[{label:'Revenue (EGP)',data:[32910,28110,19250]}]},options:base});
-new Chart(document.getElementById('prod'),{type:'bar',data:{labels:['Wireless Mouse','Keyboard','Headphones','Webcam','Desk Lamp'],datasets:[{label:'Revenue (EGP)',data:[14400,12600,8550,8400,7680]}]},options:{...base,indexAxis:'y'}});
-</script></body></html>
+<div class="footer">Practice dataset — not real company data.</div>
+</div>
+<script>
+let rows=[], charts=[];
+const money=n=>new Intl.NumberFormat('en-EG',{maximumFractionDigits:0}).format(n)+' EGP';
+const parseCSV=text=>{
+ const lines=text.trim().split(/\r?\n/), headers=lines[0].split(',');
+ return lines.slice(1).map(line=>{
+   const v=line.split(','); const o={}; headers.forEach((h,i)=>o[h]=v[i]);
+   o.Units=Number(o.Units);o.Unit_Price_EGP=Number(o.Unit_Price_EGP);o.Revenue_EGP=Number(o.Revenue_EGP);return o;
+ });
+};
+function fill(id, values){const s=document.getElementById(id);[...new Set(values)].sort().forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o)});}
+function group(data,key){const out={};data.forEach(r=>out[r[key]]=(out[r[key]]||0)+r.Revenue_EGP);return out;}
+function destroy(){charts.forEach(c=>c.destroy());charts=[]}
+function render(){
+ const city=document.getElementById('cityFilter').value, cat=document.getElementById('categoryFilter').value;
+ const data=rows.filter(r=>(city==='all'||r.City===city)&&(cat==='all'||r.Category===cat));
+ const rev=data.reduce((s,r)=>s+r.Revenue_EGP,0), units=data.reduce((s,r)=>s+r.Units,0);
+ document.getElementById('revenue').textContent=money(rev);
+ document.getElementById('units').textContent=units.toLocaleString();
+ document.getElementById('orders').textContent=data.length.toLocaleString();
+ document.getElementById('aov').textContent=money(data.length?rev/data.length:0);
+ document.getElementById('status').textContent='Showing '+data.length+' of '+rows.length+' orders';
+ destroy();
+ const base={responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}};
+ const monthly=group(data,'Date'); const months={};
+ Object.entries(monthly).forEach(([d,v])=>{const m=d.slice(0,7);months[m]=(months[m]||0)+v});
+ const monthLabels=Object.keys(months).sort();
+ charts.push(new Chart(document.getElementById('month'),{type:'bar',data:{labels:monthLabels,datasets:[{label:'Revenue (EGP)',data:monthLabels.map(x=>months[x])}]},options:base}));
+ const categories=group(data,'Category'); charts.push(new Chart(document.getElementById('cat'),{type:'doughnut',data:{labels:Object.keys(categories),datasets:[{data:Object.values(categories)}]},options:base}));
+ const cities=group(data,'City'); charts.push(new Chart(document.getElementById('city'),{type:'bar',data:{labels:Object.keys(cities),datasets:[{label:'Revenue (EGP)',data:Object.values(cities)}]},options:base}));
+ const products=group(data,'Product'); const top=Object.entries(products).sort((a,b)=>b[1]-a[1]).slice(0,5);
+ charts.push(new Chart(document.getElementById('prod'),{type:'bar',data:{labels:top.map(x=>x[0]),datasets:[{label:'Revenue (EGP)',data:top.map(x=>x[1])}]},options:{...base,indexAxis:'y'}}));
+}
+Promise.all([fetch('sales_data.csv').then(r=>r.text())]).then(([csv])=>{
+ rows=parseCSV(csv);
+ fill('cityFilter',rows.map(r=>r.City));fill('categoryFilter',rows.map(r=>r.Category));
+ document.getElementById('dateFilter').addEventListener('change',render);
+ document.getElementById('cityFilter').addEventListener('change',render);
+ document.getElementById('categoryFilter').addEventListener('change',render);
+ render();
+}).catch(e=>document.getElementById('status').textContent='Could not load sales_data.csv. Open this page from the repository/hosting path.');
+</script>
+</body></html>
