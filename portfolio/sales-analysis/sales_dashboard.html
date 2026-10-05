@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sales Analysis Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#f8fafc;color:#0f172a}.wrap{max-width:1100px;margin:auto;padding:24px}
+h1{margin-bottom:4px}.muted{color:#64748b}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0}.card,.panel{background:white;border-radius:14px;padding:18px;box-shadow:0 2px 10px #0001}.kpi{font-size:28px;font-weight:700;color:#0f766e}.charts{display:grid;grid-template-columns:1fr 1fr;gap:18px}.panel{min-height:320px}.wide{grid-column:1/-1}
+@media(max-width:700px){.grid,.charts{grid-template-columns:1fr}.kpi{font-size:24px}}
+</style></head><body><div class="wrap">
+<h1>Sales Analysis Dashboard</h1><div class="muted">Beginner practice dataset • January–March 2026 • Synthetic learning data</div>
+<div class="grid">
+<div class="card">Revenue<div class="kpi">80,270 EGP</div></div><div class="card">Units<div class="kpi">247</div></div>
+<div class="card">Orders<div class="kpi">25</div></div><div class="card">Average Order Value<div class="kpi">3,211 EGP</div></div>
+</div><div class="charts">
+<div class="panel"><h3>Revenue by Month</h3><canvas id="month"></canvas></div>
+<div class="panel"><h3>Revenue by Category</h3><canvas id="cat"></canvas></div>
+<div class="panel"><h3>Revenue by City</h3><canvas id="city"></canvas></div>
+<div class="panel"><h3>Top Products</h3><canvas id="prod"></canvas></div>
+</div>
+</div><script>
+const base={responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}};
+new Chart(document.getElementById('month'),{type:'bar',data:{labels:['January','February','March'],datasets:[{label:'Revenue (EGP)',data:[26520,27520,26230]}]},options:base});
+new Chart(document.getElementById('cat'),{type:'doughnut',data:{labels:['Electronics','Home','Office'],datasets:[{data:[47710,17200,15360]}]},options:base});
+new Chart(document.getElementById('city'),{type:'bar',data:{labels:['Cairo','Giza','Qalyubia'],datasets:[{label:'Revenue (EGP)',data:[32910,28110,19250]}]},options:base});
+new Chart(document.getElementById('prod'),{type:'bar',data:{labels:['Wireless Mouse','Keyboard','Headphones','Webcam','Desk Lamp'],datasets:[{label:'Revenue (EGP)',data:[14400,12600,8550,8400,7680]}]},options:{...base,indexAxis:'y'}});
+</script></body></html>
