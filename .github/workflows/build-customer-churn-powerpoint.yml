@@ -1,0 +1,36 @@
+name: Build Customer Churn PowerPoint
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "portfolio/customer-churn-analysis/customer_data.csv"
+      - "portfolio/customer-churn-analysis/build_powerpoint.py"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install --upgrade pandas python-pptx
+      - name: Validate analysis
+        working-directory: portfolio/customer-churn-analysis
+        run: python analysis.py
+      - name: Generate PowerPoint
+        working-directory: portfolio/customer-churn-analysis
+        run: python build_powerpoint.py
+      - name: Upload PowerPoint artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: customer-churn-powerpoint
+          path: portfolio/customer-churn-analysis/customer_churn_analysis.pptx
+          if-no-files-found: error
