@@ -1,0 +1,88 @@
+name: Claude Agent Bridge
+
+on:
+  push:
+    paths:
+      - "ai_bridge/inbox/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-claude:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Find latest Claude task
+        id: task
+        shell: bash
+        run: |
+          file=$(find ai_bridge/inbox -type f -name '*.md' | sort | tail -n 1)
+          if [ -z "$file" ]; then
+            echo "No Claude task found"
+            exit 1
+          fi
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Run Claude
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TASK_FILE: ${{ steps.task.outputs.file }}
+        shell: bash
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "ANTHROPIC_API_KEY secret is not configured."
+            exit 1
+          fi
+
+          python - <<'PY'
+          import json, os, urllib.request
+          task = open(os.environ["TASK_FILE"], encoding="utf-8").read()
+          payload = {
+              "model": "claude-sonnet-4-5",
+              "max_tokens": 4096,
+              "messages": [{"role": "user", "content":
+                  "You are the independent Claude reviewer in a three-agent software workflow. "
+                  "Inspect the repository at /workspace/repo when tools are available. "
+                  "Return a concise review with: findings, evidence, required fixes, and final verdict.\n\n"
+                  + task
+              }]
+          }
+          req = urllib.request.Request(
+              "https://api.anthropic.com/v1/messages",
+              data=json.dumps(payload).encode(),
+              headers={
+                  "content-type": "application/json",
+                  "x-api-key": os.environ["ANTHROPIC_API_KEY"],
+                  "anthropic-version": "2023-06-01",
+              },
+              method="POST",
+          )
+          with urllib.request.urlopen(req) as r:
+              data=json.load(r)
+
+          parts=[]
+          for item in data.get("content", []):
+              if item.get("type") == "text":
+                  parts.append(item.get("text",""))
+          text="\n\n".join(parts).strip()
+          os.makedirs("ai_bridge/results/claude", exist_ok=True)
+          path=f"ai_bridge/results/claude/run-{os.environ['GITHUB_RUN_ID']}.md"
+          open(path,"w",encoding="utf-8").write("# Claude Review\n\n"+text+"\n")
+          print("Result written to", path)
+          PY
+
+      - name: Commit Claude result
+        shell: bash
+        run: |
+          git config user.name "claude-agent"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ai_bridge/results/claude/
+          git commit -m "Run Claude review" || exit 0
+          git pull --rebase origin main
+          git push origin HEAD:main
