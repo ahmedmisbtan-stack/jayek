@@ -44,3 +44,4 @@ slide("Key Observations & Limitations", ["Basic has the highest observed churn r
 slide("Conclusion & Next Steps", ["Use the dashboard to explore segments.","Practice retention-focused SQL and Power BI analysis.","For real analysis, add more customers, tenure history, support interactions and cohort data."])
 prs.save(OUT)
 print(f"Created {OUT}")
+# Final CI trigger.\n
