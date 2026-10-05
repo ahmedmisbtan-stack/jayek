@@ -88,3 +88,5 @@ for i, (title, body) in enumerate(slides):
 
 prs.save(OUT)
 print(OUT)
+
+# GitHub Actions build trigger: generate the portfolio deck from the CSV.
