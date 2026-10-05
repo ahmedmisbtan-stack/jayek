@@ -1,0 +1,37 @@
+name: Build Sales Analysis PowerPoint
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "portfolio/sales-analysis/sales_data.csv"
+      - "portfolio/sales-analysis/build_powerpoint.py"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PowerPoint dependency
+        run: python -m pip install --upgrade python-pptx
+
+      - name: Generate PowerPoint
+        working-directory: portfolio/sales-analysis
+        run: python build_powerpoint.py
+
+      - name: Upload PowerPoint artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sales-analysis-powerpoint
+          path: portfolio/sales-analysis/sales_analysis_portfolio.pptx
+          if-no-files-found: error
