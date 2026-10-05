@@ -1,19 +1,35 @@
 # Project Notes
 
-I kept this project intentionally simple because it is one of my first data analysis projects.
+This is a beginner portfolio project built around the core analysis workflow:
 
-I did not try to build a complicated model or make advanced predictions.
+**Data -> Check -> Calculate -> Compare -> Visualize**
 
-The main goal was to understand the basic workflow:
+## Completed
 
-Data -> Check -> Calculate -> Compare -> Visualize
+- 25-row synthetic sales dataset for January–March 2026
+- Data-integrity checks in Python
+- SQL analysis queries
+- Validated KPIs and group totals
+- Interactive web dashboard driven by `sales_data.csv`
+- Power BI dashboard specification and DAX measures
+- Portfolio PowerPoint generated successfully through GitHub Actions
 
-## Next improvements
+## Validated results
 
-If I continue working on this project, I would like to:
+- Revenue: 80,270 EGP
+- Units: 247
+- Orders: 25
+- Average Order Value: 3,210.80 EGP
+- Top category: Electronics
+- Top product: Wireless Mouse
+- Top city: Cairo
 
-- add more rows to the dataset
-- practice data cleaning
-- add more Power BI filters
-- learn more SQL
-- compare monthly performance in more detail
+## Important scope note
+
+The dataset is synthetic learning data, not real company data.
+
+The repository contains an interactive HTML dashboard and a Power BI build specification. A native `.pbix` file requires Power BI Desktop to create/save.
+
+## Next portfolio step
+
+Move to a second beginner analysis project with a different business question and dataset so the portfolio demonstrates more than one analysis workflow.
