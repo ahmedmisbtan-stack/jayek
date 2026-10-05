@@ -1,136 +1,85 @@
-# JAYEK — Rural Food Delivery Platform
+# Ahmed — Data Analyst Portfolio
 
-> **جايك — طلبك جايك**  
-> A modular food-delivery platform built for a rural pilot in Al-Saff, Giza, Egypt.
+> **Data Analysis • Business Insights • Dashboards**
 
-![Status](https://img.shields.io/badge/status-pilot-0F766E)
-![Payment](https://img.shields.io/badge/payment-COD%20only-0F766E)
-![Backend](https://img.shields.io/badge/backend-NestJS-0F172A)
-![Database](https://img.shields.io/badge/database-PostgreSQL-0F172A)
-![Mobile](https://img.shields.io/badge/mobile-Flutter-06B6D4)
+Welcome to my public data-analysis portfolio.
 
-## Project snapshot
+I build beginner-to-intermediate analytics projects that turn business questions into **clean data, KPIs, SQL analysis, Python/Pandas workflows, dashboards, and clear conclusions**.
 
-JAYEK is a full-stack delivery platform designed around a practical pilot workflow:
+## 📊 Featured Projects
 
-**Customer → Restaurant → Rider → Delivery → Cash collection**
+### 1. Sales Analysis
+**Business goal:** Understand revenue performance across months, cities, categories, and products.
 
-The current pilot uses **Cash on Delivery (COD)**. Online payments are intentionally disabled until a real payment provider is configured.
+**Tools:** Python · Pandas · SQL · Power BI
 
-### What is included
+**Key results**
+- **80,270 EGP** total revenue
+- **247** units sold
+- **25** orders
+- **3,211 EGP** average order value
+- Electronics was the highest-revenue category
+- Wireless Mouse was the highest-revenue product
 
-- Customer mobile application
-- Rider mobile application
-- NestJS API
-- PostgreSQL data layer
-- Provider-neutral integrations for OTP, push notifications, maps, payments, and storage
-- Authentication, refresh-token sessions, RBAC, rate limiting, audit logging
-- Order lifecycle and COD payment state management
-- Health/readiness checks
-- Docker-based local and production-oriented infrastructure
-- CI checks, Flutter analysis/tests, security smoke tests, and OWASP ZAP baseline scanning
-
-## Technology
-
-| Area | Stack |
-|---|---|
-| Mobile | Flutter / Dart |
-| API | NestJS / TypeScript |
-| Database | PostgreSQL |
-| Infrastructure | Docker / Docker Compose |
-| Integrations | Provider-neutral adapters |
-| Security | RBAC, token revocation, rate limiting, validation, audit logs |
-| Quality | CI, automated tests, smoke checks, OWASP ZAP |
-
-## Run locally
-
-1. Copy the example environment file:
-
-```bash
-cp .env.example .env
-```
-
-2. Configure a strong `JWT_SECRET`.
-3. Start the local stack:
-
-```bash
-docker compose -f infra/docker-compose.yml up --build
-```
-
-4. Check the API:
-
-```text
-http://localhost:3000/api/v1/health
-http://localhost:3000/api/v1/health/ready
-```
-
-> Dependencies are intentionally not committed to the repository. Install/build them in the target environment.
-
-## Pilot payment model
-
-The current release is **COD-only**:
-
-- New orders record a cash payment as `PENDING`.
-- The payment becomes `PAID` when the assigned rider marks the order `DELIVERED`.
-- Online card/wallet checkout remains disabled until a production provider is intentionally enabled.
-
-## Engineering focus
-
-This repository is also a useful foundation for operational analytics. Future analysis work can use delivery/order data to study:
-
-- Order volume and growth
-- Average delivery time
-- Cancellation rate
-- Rider performance
-- Restaurant performance
-- Customer retention
-- COD collection performance
-- Geographic demand patterns
-
-No analytics results are claimed here unless they are produced from actual project data.
-
-## Repository structure
-
-```text
-apps/
-  api/              # NestJS backend
-  customer/         # Customer Flutter app
-  rider/            # Rider Flutter app
-infra/              # Docker, schema and deployment configuration
-docs/               # Release and production documentation
-tools/              # Verification and closed-loop checks
-.github/workflows/  # CI/CD workflows
-```
-
-## Portfolio direction
-
-The repository represents a real software-engineering project while my professional direction is expanding toward **Data Analysis**.
-
-Current learning path:
-
-**Excel → SQL → Power BI → Python/Pandas → Statistics → Portfolio Projects**
-
-The goal is to turn real business questions into clean analysis, KPIs, dashboards, and actionable insights.
-
-## Security
-
-Before running a production deployment:
-
-- Never commit real secrets or production environment files.
-- Use the provided example configuration files.
-- Generate production secrets outside Git.
-- Review the production launch checklist in `docs/`.
-
-## Status
-
-**JAYEK v3.3.1 — COD-only pilot**
-
-This repository is presented as a public portfolio/project repository. Production credentials, private environment files, and runtime dependencies are not part of the repository.
+👉 **[Open Sales Analysis](portfolio/sales-analysis/)**
 
 ---
 
-### Visual identity
+### 2. Customer Churn Analysis
+**Business goal:** Identify customer segments with the highest observed churn.
 
-**Navy** `#0F172A` · **Teal** `#0F766E` · **Cyan** `#06B6D4` · **Slate** `#334155`
+**Tools:** Python · Pandas · SQL · Power BI · Interactive HTML Dashboard
 
-Built with a practical, data-aware engineering mindset.
+**Key results**
+- **30** customers
+- **316,230 EGP** revenue represented
+- **10** churned customers
+- **33.33%** overall churn rate
+- Basic plan: **61.54%** churn
+- Qalyubia: **66.67%** churn
+- Mobile: **46.67%** churn vs **20.00%** Web
+
+👉 **[Open Customer Churn Analysis](portfolio/customer-churn-analysis/)**
+
+> These are synthetic learning datasets. Findings are descriptive and are not presented as predictive claims.
+
+## 🛠️ Skills Demonstrated
+
+| Skill | Applied in |
+|---|---|
+| Python / Pandas | Data cleaning, validation, aggregation, KPIs |
+| SQL | Business questions and grouped analysis |
+| Power BI | Dashboard planning, DAX measures, visual design |
+| Data Validation | Automated checks and expected-result validation |
+| Dashboard Design | KPI cards, filters, comparisons and trends |
+| Business Thinking | Questions → metrics → findings → limitations |
+
+## 📈 My Analytics Workflow
+
+**Business Question → Data Check → KPI Definition → SQL/Python Analysis → Dashboard → Insights → Limitations**
+
+I focus on explaining **what the numbers mean**, not only producing charts.
+
+## 🎯 Current Learning Path
+
+**Excel → SQL → Power BI → Python/Pandas → Statistics → Portfolio Projects**
+
+The portfolio will continue to grow with projects covering different business problems and datasets.
+
+## 📁 Repository
+
+The repository also contains **JAYEK**, a separate full-stack rural food-delivery engineering project.
+
+The analytics portfolio is organized under:
+
+`portfolio/`
+
+Each project includes its dataset, analysis code, SQL queries, dashboard materials, documentation, and validation workflow where applicable.
+
+## ⚠️ Data Note
+
+The portfolio projects currently use **synthetic practice data** created for learning and demonstration. They do not represent confidential or real-company datasets.
+
+---
+
+**Thanks for visiting.**
