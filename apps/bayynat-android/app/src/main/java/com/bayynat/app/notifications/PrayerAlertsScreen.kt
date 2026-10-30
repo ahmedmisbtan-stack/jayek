@@ -124,6 +124,14 @@ fun PrayerAlertsScreenContent(onOpenPrayerTimes: () -> Unit) {
 
         OutlinedButton(
             onClick = {
+                PrayerAlarmScheduler.cancel(context)
+                message = "تم إلغاء التنبيه المجدول."
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("إيقاف تنبيه الصلاة المجدول") }
+
+        OutlinedButton(
+            onClick = {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.bayynat.org.lb/prayer-time")))
             },
             modifier = Modifier.fillMaxWidth()
