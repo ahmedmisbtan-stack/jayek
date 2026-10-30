@@ -96,6 +96,12 @@ fun PrayerAlertsScreenContent(onOpenPrayerTimes: () -> Unit) {
             modifier = Modifier.fillMaxWidth()
         ) { Text("إعداد إذن المنبهات الدقيقة") }
 
+        OutlinedButton(
+            onClick = { soundPicker.launch(arrayOf("audio/*")) },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("اختيار ملف صوت الأذان من الجهاز") }
+        Text("الصوت المحدد: $soundLabel", style = MaterialTheme.typography.bodySmall)
+
         OutlinedButton(onClick = onOpenPrayerTimes, modifier = Modifier.fillMaxWidth()) {
             Text("حساب المواقيت وضبط تنبيه الصلاة القادمة")
         }
