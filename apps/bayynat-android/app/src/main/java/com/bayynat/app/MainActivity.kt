@@ -30,6 +30,8 @@ import com.bayynat.app.quran.QuranScreenContent
 import com.bayynat.app.prayer.PrayerScreenContent
 import com.bayynat.app.qibla.QiblaScreenContent
 import com.bayynat.app.audio.AudioPlayerScreenContent
+import com.bayynat.app.notifications.PrayerAlertsScreenContent
+import com.bayynat.app.names.NamesScreenContent
 import com.bayynat.app.core.HijriDateProvider
 import java.util.Date
 
@@ -121,8 +123,8 @@ private fun BayynatApp() {
                 3 -> AzkarScreen()
                 4 -> MoreScreen(onSelect = { selected = it })
                 5 -> QiblaScreenContent()
-                6 -> SimpleSectionScreen("التنبيهات والأذان", "إدارة أذونات الإشعارات والأذان المحلي ستظهر هنا بعد ربط مواقيت الموقع وجدولة الصلوات.")
-                7 -> SimpleSectionScreen("أسماء الله الحسنى", "سيُعرض فهرس الأسماء ومعانيها مع إسناد المصدر قبل اعتماد المحتوى.")
+                6 -> PrayerAlertsScreenContent(onOpenPrayerTimes = { selected = 2 })
+                7 -> NamesScreenContent()
                 8 -> HijriCalendarScreen()
                 9 -> OfficialContentScreen("الفقه", "https://www.bayynat.org.lb/article/category/25910/%D9%81%D9%82%D9%87/ar", "الرسائل العملية، فقه الشريعة، كيفية تأدية العبادات، مصطلحات فقهية، مناسك الحج")
                 10 -> OfficialContentScreen("المكتبة", "https://www.bayynat.org.lb/library/category/25922/%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8%D8%A9/ar", "قرآنيات، كتب عن السيد، الأسرة والمجتمع، أهل البيت، الأخلاق، الحديث، الدعاء، الفكر الإسلامي")
