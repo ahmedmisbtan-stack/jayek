@@ -63,6 +63,9 @@ object PrayerNotifications {
 object PrayerAlarmScheduler {
     const val EXTRA_PRAYER_NAME = "extra_prayer_name"
     private const val REQUEST_CODE = 7002
+    private const val PREFS = "bayynat_prayer_alarm"
+    private const val KEY_TIME = "trigger_time"
+    private const val KEY_NAME = "prayer_name"
 
     fun canScheduleExact(context: Context): Boolean {
         val manager = context.getSystemService(AlarmManager::class.java)
@@ -81,6 +84,10 @@ object PrayerAlarmScheduler {
 
     fun schedule(context: Context, triggerAtMillis: Long, prayerName: String) {
         require(triggerAtMillis > System.currentTimeMillis()) { "Alarm time must be in the future" }
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putLong(KEY_TIME, triggerAtMillis)
+            .putString(KEY_NAME, prayerName)
+            .apply()
         val manager = context.getSystemService(AlarmManager::class.java)
         val intent = Intent(context, PrayerAlarmReceiver::class.java)
             .putExtra(EXTRA_PRAYER_NAME, prayerName)
@@ -96,6 +103,7 @@ object PrayerAlarmScheduler {
     }
 
     fun cancel(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
         val intent = Intent(context, PrayerAlarmReceiver::class.java)
         val pending = PendingIntent.getBroadcast(
             context, REQUEST_CODE, intent,
@@ -103,6 +111,18 @@ object PrayerAlarmScheduler {
         ) ?: return
         context.getSystemService(AlarmManager::class.java).cancel(pending)
         pending.cancel()
+    }
+}
+
+class PrayerBootReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
+        val prefs = context.getSharedPreferences("bayynat_prayer_alarm", Context.MODE_PRIVATE)
+        val trigger = prefs.getLong("trigger_time", 0L)
+        val name = prefs.getString("prayer_name", null)
+        if (trigger > System.currentTimeMillis() && name != null) {
+            PrayerAlarmScheduler.schedule(context, trigger, name)
+        }
     }
 }
 
