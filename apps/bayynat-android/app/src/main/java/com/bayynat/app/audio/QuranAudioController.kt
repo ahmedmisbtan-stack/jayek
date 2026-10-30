@@ -34,6 +34,24 @@ class QuranAudioController(context: Context) {
         }, executor)
     }
 
+    fun playPlaylist(uris: List<String>, title: String) {
+        if (uris.isEmpty()) return
+        future.addListener({
+            runCatching {
+                val controller = future.get()
+                val items = uris.mapIndexed { index, uri ->
+                    MediaItem.Builder()
+                        .setUri(uri)
+                        .setMediaMetadata(MediaMetadata.Builder().setTitle("$title • ${index + 1}").build())
+                        .build()
+                }
+                controller.setMediaItems(items)
+                controller.prepare()
+                controller.play()
+            }
+        }, executor)
+    }
+
     fun pause() {
         future.addListener({ runCatching { future.get().pause() } }, executor)
     }
