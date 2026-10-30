@@ -245,7 +245,11 @@ private fun MoreScreen(onSelect: (Int) -> Unit) {
         "المكتبة" to 10,
         "أرشيف السيد" to 11,
         "حقيبة بيّنات" to 12,
-        "الصوتيات والتلاوات" to 13
+        "الصوتيات والتلاوات" to 13,
+        "أخبار بيّنات" to 14,
+        "كتابات" to 15,
+        "محاضرات" to 16,
+        "مقابلات" to 17
     )
     Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("المزيد", style = MaterialTheme.typography.headlineSmall, color = Navy, fontWeight = FontWeight.Bold)
