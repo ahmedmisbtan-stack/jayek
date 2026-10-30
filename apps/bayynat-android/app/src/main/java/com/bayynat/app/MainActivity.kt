@@ -32,6 +32,7 @@ import com.bayynat.app.qibla.QiblaScreenContent
 import com.bayynat.app.audio.AudioPlayerScreenContent
 import com.bayynat.app.notifications.PrayerAlertsScreenContent
 import com.bayynat.app.names.NamesScreenContent
+import com.bayynat.app.azkar.AzkarScreenContent
 import com.bayynat.app.core.HijriDateProvider
 import java.util.Date
 
@@ -226,18 +227,7 @@ private fun PrayerScreen() {
 
 @Composable
 private fun AzkarScreen() {
-    var count by remember { mutableIntStateOf(0) }
-    Page("الأذكار والسبحة") {
-        Text("سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, style = MaterialTheme.typography.headlineSmall)
-        Text(count.toString(), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, style = MaterialTheme.typography.displayLarge, color = Green)
-        Button(
-            onClick = { count++ },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Green)
-        ) { Text("تسبيح", color = Color.White) }
-        OutlinedButton(onClick = { count = 0 }, modifier = Modifier.fillMaxWidth()) { Text("إعادة العداد", color = Green) }
-        Text("سيتم إضافة أبواب أذكار الصباح والمساء والنوم والصلاة بمصادر موثقة.")
-    }
+    AzkarScreenContent()
 }
 
 @Composable
