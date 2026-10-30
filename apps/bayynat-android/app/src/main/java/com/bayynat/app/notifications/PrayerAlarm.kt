@@ -45,7 +45,7 @@ object PrayerNotifications {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.bayynat_mark)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("حان وقت صلاة $prayerName")
             .setContentText("حيّ على الصلاة")
             .setCategory(NotificationCompat.CATEGORY_ALARM)
