@@ -25,6 +25,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bayynat.app.quran.QuranScreenContent
 import com.bayynat.app.prayer.PrayerScreenContent
+import com.bayynat.app.qibla.QiblaScreenContent
+import com.bayynat.app.core.HijriDateProvider
+import java.util.Date
 
 private val Gold = Color(0xFFD99A32)
 private val Green = Color(0xFF176B55)
@@ -91,7 +94,7 @@ private fun BayynatApp() {
             NavigationBar(containerColor = Color.White, contentColor = Green) {
                 destinations.forEachIndexed { index, item ->
                     NavigationBarItem(
-                        selected = selected == index,
+                        selected = if (selected >= 5) index == 4 else selected == index,
                         onClick = { selected = index },
                         icon = { Icon(item.icon, contentDescription = item.title) },
                         label = { Text(item.title) },
@@ -111,7 +114,12 @@ private fun BayynatApp() {
                 1 -> QuranScreen()
                 2 -> PrayerScreen()
                 3 -> AzkarScreen()
-                else -> MoreScreen()
+                4 -> MoreScreen(onSelect = { selected = it })
+                5 -> QiblaScreenContent()
+                6 -> SimpleSectionScreen("التنبيهات والأذان", "إدارة أذونات الإشعارات والأذان المحلي ستظهر هنا بعد ربط مواقيت الموقع وجدولة الصلوات.")
+                7 -> SimpleSectionScreen("أسماء الله الحسنى", "سيُعرض فهرس الأسماء ومعانيها مع إسناد المصدر قبل اعتماد المحتوى.")
+                8 -> HijriCalendarScreen()
+                else -> MoreScreen(onSelect = { selected = it })
             }
         }
     }
@@ -217,14 +225,52 @@ private fun AzkarScreen() {
 }
 
 @Composable
-private fun MoreScreen() {
+private fun MoreScreen(onSelect: (Int) -> Unit) {
     Page("المزيد") {
-        listOf("اتجاه القبلة", "التنبيهات والأذان", "أسماء الله الحسنى", "التقويم الهجري").forEach { title ->
-            ListItem(
-                headlineContent = { Text(title) },
-                leadingContent = { Icon(Icons.Default.AutoAwesome, null, tint = Gold) },
-                colors = ListItemDefaults.colors(containerColor = Color.White)
-            )
+        val entries = listOf(
+            "اتجاه القبلة" to 5,
+            "التنبيهات والأذان" to 6,
+            "أسماء الله الحسنى" to 7,
+            "التقويم الهجري" to 8
+        )
+        entries.forEach { (title, target) ->
+            Card(
+                onClick = { onSelect(target) },
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.AutoAwesome, null, tint = Gold)
+                    Spacer(Modifier.width(12.dp))
+                    Text(title, modifier = Modifier.weight(1f), color = Ink, fontWeight = FontWeight.Medium)
+                    Icon(Icons.Default.ChevronLeft, null, tint = Green)
+                }
+            }
         }
+        Text("محتوى الموقع: الفقه، المكتبة، حقيبة بيّنات، الأرشيف، الأخبار والمحاضرات.")
+    }
+}
+
+@Composable
+private fun SimpleSectionScreen(title: String, description: String) {
+    Page(title) {
+        Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Text(description, modifier = Modifier.padding(18.dp))
+        }
+    }
+}
+
+@Composable
+private fun HijriCalendarScreen() {
+    val hijri = remember { HijriDateProvider.today(Date()) }
+    Page("التقويم الهجري") {
+        Card(colors = CardDefaults.cardColors(containerColor = Navy), shape = RoundedCornerShape(22.dp)) {
+            Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(hijri.day, color = Gold, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
+                Text(hijri.month, color = Color.White, style = MaterialTheme.typography.headlineSmall)
+                Text(hijri.year + " هـ", color = Color.White)
+            }
+        }
+        Text("يعتمد هذا العرض على تقويم أم القرى/الإسلامي المحلي في Android، وقد يختلف عن بدايات الشهور المعتمدة في موقع بيّنات بحسب رؤية الهلال والاشتراك بجزء من الليل.")
     }
 }
