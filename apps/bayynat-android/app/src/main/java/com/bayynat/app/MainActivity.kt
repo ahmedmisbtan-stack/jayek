@@ -23,6 +23,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.bayynat.app.quran.QuranScreenContent
 
 private val Gold = Color(0xFFD99A32)
 private val Green = Color(0xFF176B55)
@@ -190,19 +191,7 @@ private fun Page(title: String, body: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun QuranScreen() {
-    val surahs = listOf("الفاتحة", "البقرة", "آل عمران", "النساء", "المائدة", "الأنعام", "الأعراف", "الأنفال", "التوبة", "يونس")
-    Page("القرآن الكريم") {
-        Text("سيتم تحميل فهرس المصحف والنص العثماني من مصدر موثوق بعد تثبيت مصدر البيانات والترخيص.")
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(surahs) { surah ->
-                ListItem(
-                    headlineContent = { Text(surah, color = Ink) },
-                    leadingContent = { Icon(Icons.Default.MenuBook, null, tint = Gold) },
-                    colors = ListItemDefaults.colors(containerColor = Color.White)
-                )
-            }
-        }
-    }
+    QuranScreenContent()
 }
 
 @Composable
