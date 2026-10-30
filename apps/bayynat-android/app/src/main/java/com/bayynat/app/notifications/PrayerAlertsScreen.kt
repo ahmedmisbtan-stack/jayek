@@ -59,15 +59,19 @@ fun PrayerAlertsScreenContent(onOpenPrayerTimes: () -> Unit) {
 
     val soundPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
-            runCatching {
+            val persisted = runCatching {
                 context.contentResolver.takePersistableUriPermission(
                     uri,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
+            }.isSuccess
+            if (persisted) {
+                PrayerNotifications.setCustomSound(context, uri)
+                soundLabel = uri.lastPathSegment ?: "ملف أذان مخصص"
+                message = "تم اختيار الصوت. راجع إعدادات قناة الإشعار إذا لم يصدر صوت."
+            } else {
+                message = "تعذّر حفظ إذن الملف؛ اختر ملفًا من تطبيق ملفات يدعم الوصول المستمر."
             }
-            PrayerNotifications.setCustomSound(context, uri)
-            soundLabel = uri.lastPathSegment ?: "ملف أذان مخصص"
-            message = "تم اختيار ملف الصوت. قد تحتاج إلى السماح بصوته من إعدادات قناة الإشعار في Android."
         }
     }
 
