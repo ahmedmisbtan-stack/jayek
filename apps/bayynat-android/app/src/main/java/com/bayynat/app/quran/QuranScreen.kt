@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -144,7 +145,10 @@ fun QuranScreenContent() {
                 OutlinedButton(onClick = { selected = null }) { Text("فهرس السور") }
                 Text(selected!!.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             }
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val savedAyah = preferences.getInt("last_ayah", 1).coerceIn(1, selected!!.numberOfAyahs)
+            val readingState = rememberLazyListState(initialFirstVisibleItemIndex = savedAyah - 1)
+            Text("آخر موضع محفوظ: الآية $savedAyah", style = MaterialTheme.typography.bodySmall)
+            LazyColumn(state = readingState, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(selected!!.ayahs, key = { it.number }) { ayah ->
                     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                         Text(
@@ -153,7 +157,20 @@ fun QuranScreenContent() {
                             textAlign = TextAlign.Right,
                             style = MaterialTheme.typography.headlineSmall
                         )
-                        Text("﴿${ayah.numberInSurah}﴾", color = MaterialTheme.colorScheme.secondary)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("﴿${ayah.numberInSurah}﴾", color = MaterialTheme.colorScheme.secondary)
+                            OutlinedButton(onClick = {
+                                lastSurahNumber = selected!!.number
+                                preferences.edit()
+                                    .putInt("last_surah", selected!!.number)
+                                    .putInt("last_ayah", ayah.numberInSurah)
+                                    .apply()
+                            }) { Text("حفظ موضع القراءة") }
+                        }
                         HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
                     }
                 }
