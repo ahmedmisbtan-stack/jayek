@@ -68,6 +68,26 @@ private fun BayynatTheme(content: @Composable () -> Unit) {
 
 private data class Destination(val title: String, val icon: ImageVector)
 
+private fun sectionIcon(target: Int): ImageVector = when (target) {
+    1 -> Icons.Default.MenuBook
+    2 -> Icons.Default.AccessTime
+    3 -> Icons.Default.Favorite
+    5 -> Icons.Default.Explore
+    6 -> Icons.Default.Notifications
+    7 -> Icons.Default.Star
+    8 -> Icons.Default.CalendarToday
+    9 -> Icons.Default.Gavel
+    10 -> Icons.Default.LibraryBooks
+    11 -> Icons.Default.History
+    12 -> Icons.Default.Work
+    13 -> Icons.Default.VolumeUp
+    14 -> Icons.Default.Article
+    15 -> Icons.Default.Edit
+    16 -> Icons.Default.Mic
+    17 -> Icons.Default.Forum
+    else -> Icons.Default.AutoAwesome
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BayynatApp() {
@@ -197,7 +217,7 @@ private fun HomeScreen(onSelect: (Int) -> Unit) {
                         Modifier.fillMaxWidth().padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.AutoAwesome, null, tint = Gold)
+                        Icon(sectionIcon(target), null, tint = Gold)
                         Spacer(Modifier.width(12.dp))
                         Text(title, modifier = Modifier.weight(1f), color = Ink, fontWeight = FontWeight.Medium)
                         Icon(Icons.Default.ChevronLeft, null, tint = Green)
