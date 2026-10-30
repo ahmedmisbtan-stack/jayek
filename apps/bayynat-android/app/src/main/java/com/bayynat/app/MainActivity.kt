@@ -131,6 +131,10 @@ private fun BayynatApp() {
                 10 -> OfficialContentScreen("المكتبة", "https://www.bayynat.org.lb/library/category/25922/%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8%D8%A9/ar", "قرآنيات، كتب عن السيد، الأسرة والمجتمع، أهل البيت، الأخلاق، الحديث، الدعاء، الفكر الإسلامي")
                 11 -> OfficialContentScreen("أرشيف السيد", "https://www.bayynat.org.lb/article/category/440/%D8%A3%D8%B1%D8%B4%D9%8A%D9%81-%D8%A7%D9%84%D8%B3%D9%8A%D8%AF/ar", "الخطب والبيانات والأخبار والسيرة والمقابلات والحوارات والأناشيد")
                 13 -> AudioPlayerScreenContent()
+                14 -> OfficialContentScreen("أخبار بيّنات", "https://www.bayynat.org.lb/article/category/31987/%D8%A3%D8%AE%D8%A8%D8%A7%D8%B1-%D8%A8%D9%8A%D9%86%D8%A7%D8%AA/ar", "أخبار الموقع والإعلانات والمواد الحديثة")
+                15 -> OfficialContentScreen("كتابات", "https://www.bayynat.org.lb/article/category/31984/%D9%83%D8%AA%D8%A7%D8%A8%D8%A7%D8%AA/ar", "كتابات فكرية وثقافية واجتماعية")
+                16 -> OfficialContentScreen("محاضرات", "https://www.bayynat.org.lb/article/category/31983/%D9%85%D8%AD%D8%A7%D8%B6%D8%B1%D8%A7%D8%AA/ar", "محاضرات ودروس مرئية ومسموعة")
+                17 -> OfficialContentScreen("مقابلات", "https://www.bayynat.org.lb/article/category/1050/%D9%85%D9%82%D8%A7%D8%A8%D9%84%D8%A7%D8%AA/ar", "مقابلات وحوارات فكرية وتربوية")
                 12 -> OfficialContentScreen("حقيبة بيّنات", "https://www.bayynat.org.lb/article/category/24117/%D8%AD%D9%82%D9%8A%D8%A8%D8%A9-%D8%A8%D9%8A%D9%86%D8%A7%D8%AA/ar", "الأعمال والمستحبات، المناسبات، المواقيت، الدعاء، الصحيفة السجادية، الأدعية، المناجيات والزيارات")
                 else -> MoreScreen(onSelect = { selected = it })
             }
