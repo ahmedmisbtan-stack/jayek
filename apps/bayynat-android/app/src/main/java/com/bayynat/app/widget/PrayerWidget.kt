@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.core.toMutablePreferences
+import androidx.datastore.preferences.core.preferencesOf
 import com.bayynat.app.MainActivity
 
 private val nextPrayerKey = stringPreferencesKey("widget_next_prayer")
@@ -76,12 +76,12 @@ object PrayerWidgetUpdater {
     suspend fun update(context: Context, prayer: String, time: String, location: String) {
         val manager = GlanceAppWidgetManager(context)
         manager.getGlanceIds(PrayerWidget::class.java).forEach { id ->
-            updateAppWidgetState(context, PreferencesGlanceStateDefinition, id) { prefs ->
-                prefs.toMutablePreferences().apply {
-                    this[nextPrayerKey] = prayer
-                    this[nextTimeKey] = time
-                    this[locationKey] = location
-                }
+            updateAppWidgetState(context, PreferencesGlanceStateDefinition, id) {
+                preferencesOf(
+                    nextPrayerKey to prayer,
+                    nextTimeKey to time,
+                    locationKey to location
+                )
             }
             PrayerWidget().update(context, id)
         }
