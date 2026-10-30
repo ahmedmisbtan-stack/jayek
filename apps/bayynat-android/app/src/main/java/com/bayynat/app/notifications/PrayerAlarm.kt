@@ -16,6 +16,10 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.bayynat.app.MainActivity
 import com.bayynat.app.R
+import com.batoulapps.adhan.CalculationMethod
+import com.bayynat.app.core.PrayerCalculator
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 object PrayerNotifications {
     const val CHANNEL_ID = "bayynat_prayer_alerts"
@@ -143,5 +147,23 @@ class PrayerAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val name = intent.getStringExtra(PrayerAlarmScheduler.EXTRA_PRAYER_NAME) ?: "الصلاة"
         PrayerNotifications.show(context, name)
+        val prefs = context.getSharedPreferences("bayynat_prayer_location", Context.MODE_PRIVATE)
+        val latitude = prefs.getString("latitude", null)?.toDoubleOrNull()
+        val longitude = prefs.getString("longitude", null)?.toDoubleOrNull()
+        if (latitude != null && longitude != null) {
+            val methodName = prefs.getString("method", CalculationMethod.MUSLIM_WORLD_LEAGUE.name)
+            val method = runCatching { CalculationMethod.valueOf(methodName ?: "") }
+                .getOrDefault(CalculationMethod.MUSLIM_WORLD_LEAGUE)
+            runCatching {
+                val next = PrayerCalculator.calculate(latitude, longitude, method = method).nextPrayer()
+                PrayerAlarmScheduler.schedule(context, next.second.time, next.first)
+                val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(next.second)
+                kotlinx.coroutines.runBlocking {
+                    com.bayynat.app.widget.PrayerWidgetUpdater.update(
+                        context, next.first, time, prefs.getString("location", "موقعي") ?: "موقعي"
+                    )
+                }
+            }
+        }
     }
 }
