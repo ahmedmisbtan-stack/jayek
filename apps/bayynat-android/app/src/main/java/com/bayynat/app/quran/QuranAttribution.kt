@@ -1,5 +1,5 @@
 package com.bayynat.app.quran
 
 object QuranAttribution {
-    const val NOTICE = "مصدر النص: AlQuran Cloud API — quran-uthmani. يجب الرجوع إلى بيانات المصدر والترخيص قبل إعادة توزيع النص محليًا."
+    const val NOTICE = "النص العثماني والتلاوات الصوتية: AlQuran Cloud API، مع الإسناد إلى Quran Academy وTanzil بحسب بيانات الخدمة. يُحافظ على الرسم والضبط دون تعديل. شروط الاستخدام: alquran.cloud/terms-and-conditions."
 }
