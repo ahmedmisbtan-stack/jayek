@@ -105,7 +105,7 @@ fun AudioPlayerScreenContent() {
                             error = null
                             try {
                                 val audio = withContext(Dispatchers.IO) { repository.getSurahAudio(number, reciter) }
-                                player.playPlaylist(audio.ayahs.map { it.audio }, audio.name)
+                                player.playPlaylist(audio.ayahs.map { it.audio }, audio.name + " • " + reciter)
                             } catch (_: Exception) {
                                 error = "تعذّر تحميل التلاوة. تحقق من الاتصال وحاول مجددًا."
                             } finally {
