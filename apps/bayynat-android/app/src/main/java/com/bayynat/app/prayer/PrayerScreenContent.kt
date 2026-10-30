@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -144,7 +144,7 @@ fun PrayerScreenContent() {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("مواقيت الصلاة", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -192,8 +192,8 @@ fun PrayerScreenContent() {
 
         if (schedule.isNotEmpty()) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                LazyColumn(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-                    items(schedule) { (name, time) ->
+                Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                    schedule.forEach { (name, time) ->
                         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(name, fontWeight = FontWeight.Medium)
                             Text(time, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
