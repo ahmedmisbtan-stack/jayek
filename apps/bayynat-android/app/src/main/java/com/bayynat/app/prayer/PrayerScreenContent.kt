@@ -1,11 +1,13 @@
 package com.bayynat.app.prayer
 
 import android.Manifest
+import android.os.Build
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,7 +39,9 @@ import com.batoulapps.adhan.CalculationMethod
 import com.bayynat.app.core.PrayerCalculator
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.google.android.gms.tasks.CancellationTokenSource\nimport com.bayynat.app.widget.PrayerWidgetUpdater\nimport kotlinx.coroutines.launch
+import com.google.android.gms.tasks.CancellationTokenSource\nimport com.bayynat.app.widget.PrayerWidgetUpdater
+import com.bayynat.app.notifications.PrayerAlarmScheduler
+import com.bayynat.app.notifications.PrayerNotifications\nimport kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -52,6 +56,9 @@ fun PrayerScreenContent() {
     var error by remember { mutableStateOf<String?>(null) }
     var method by remember { mutableStateOf(CalculationMethod.MUSLIM_WORLD_LEAGUE) }
     var methodMenu by remember { mutableStateOf(false) }
+    var nextPrayerName by remember { mutableStateOf<String?>(null) }
+    var nextPrayerAt by remember { mutableStateOf<java.util.Date?>(null) }
+    var alertsEnabled by remember { mutableStateOf(false) }
 
     fun readLocation() {
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
@@ -75,6 +82,28 @@ fun PrayerScreenContent() {
         }
     }
 
+
+    fun scheduleNextAlert() {
+        val time = nextPrayerAt?.time
+        val name = nextPrayerName
+        if (time == null || name == null) { error = "احسب المواقيت أولًا."; return }
+        if (!PrayerAlarmScheduler.canScheduleExact(context)) {
+            PrayerAlarmScheduler.openExactAlarmSettings(context)
+            error = "فعّل المنبهات الدقيقة من إعدادات Android ثم اضغط التنبيه مجددًا."
+            return
+        }
+        PrayerNotifications.createChannel(context)
+        PrayerAlarmScheduler.schedule(context, time, name)
+        alertsEnabled = true
+        error = null
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) scheduleNextAlert() else error = "لم يتم منح إذن الإشعارات."
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
@@ -94,6 +123,9 @@ fun PrayerScreenContent() {
                 schedule = result.asRows()
                 error = null
                 val next = result.nextPrayer()
+                nextPrayerName = next.first
+                nextPrayerAt = next.second
+                alertsEnabled = false
                 val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(next.second)
                 scope.launch { PrayerWidgetUpdater.update(context, next.first, time, locationLabel) }
             }
@@ -159,6 +191,20 @@ fun PrayerScreenContent() {
                 }
             }
             Text("هذه مواقيت محسوبة محليًا بالطريقة المختارة، وليست نقلًا مباشرًا عن خدمة بيّنات الرسمية.")
+            OutlinedButton(
+                onClick = {
+                    if (Build.VERSION.SDK_INT >= 33 &&
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                    ) notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    else scheduleNextAlert()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text(if (alertsEnabled) "تم ضبط تنبيه الصلاة القادمة" else "تنبيه الصلاة القادمة") }
+            if (alertsEnabled) {
+                OutlinedButton(onClick = { PrayerAlarmScheduler.cancel(context); alertsEnabled = false }) {
+                    Text("إلغاء التنبيه")
+                }
+            }
         }
 
         OutlinedButton(
