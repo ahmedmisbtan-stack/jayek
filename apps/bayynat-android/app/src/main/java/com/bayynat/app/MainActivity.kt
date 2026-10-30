@@ -1,6 +1,7 @@
 package com.bayynat.app
 
 import android.os.Bundle
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -23,14 +24,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-private val Gold = Color(0xFFE8C27A)
-private val Green = Color(0xFF006B58)
+private val Gold = Color(0xFFD99A32)
+private val Green = Color(0xFF176B55)
 private val Navy = Color(0xFF08264C)
-private val Ivory = Color(0xFFFFF8EA)
-private val Ink = Color(0xFF18364A)
+private val Ivory = Color(0xFFFFF5E5)
+private val Ink = Color(0xFF49351F)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         setContent { BayynatTheme { BayynatApp() } }
     }
@@ -73,7 +75,7 @@ private fun BayynatApp() {
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Image(
-                            painter = painterResource(R.drawable.bayynat_mark),
+                            painter = painterResource(R.drawable.bayynat_logo),
                             contentDescription = "شعار بيّنات",
                             modifier = Modifier.size(38.dp)
                         )
