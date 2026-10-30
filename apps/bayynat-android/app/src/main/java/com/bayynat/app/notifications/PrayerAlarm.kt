@@ -18,8 +18,6 @@ import com.bayynat.app.MainActivity
 import com.bayynat.app.R
 import com.batoulapps.adhan.CalculationMethod
 import com.bayynat.app.core.PrayerCalculator
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 object PrayerNotifications {
     const val CHANNEL_ID = "bayynat_prayer_alerts"
@@ -157,12 +155,6 @@ class PrayerAlarmReceiver : BroadcastReceiver() {
             runCatching {
                 val next = PrayerCalculator.calculate(latitude, longitude, method = method).nextPrayer()
                 PrayerAlarmScheduler.schedule(context, next.second.time, next.first)
-                val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(next.second)
-                kotlinx.coroutines.runBlocking {
-                    com.bayynat.app.widget.PrayerWidgetUpdater.update(
-                        context, next.first, time, prefs.getString("location", "موقعي") ?: "موقعي"
-                    )
-                }
             }
         }
     }
