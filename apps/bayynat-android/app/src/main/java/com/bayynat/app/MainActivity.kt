@@ -171,7 +171,11 @@ private fun HomeScreen(onSelect: (Int) -> Unit) {
             "القبلة" to 5,
             "التنبيهات" to 6,
             "أسماء الله الحسنى" to 7,
-            "التقويم الهجري" to 8
+            "التقويم الهجري" to 8,
+            "الفقه" to 9,
+            "المكتبة" to 10,
+            "أرشيف السيد" to 11,
+            "حقيبة بيّنات" to 12
         )
         LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp)) {
             items(sections) { (title, target) ->
