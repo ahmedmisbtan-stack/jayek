@@ -285,7 +285,7 @@ private fun MoreScreen(onSelect: (Int) -> Unit) {
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AutoAwesome, null, tint = Gold)
+                        Icon(sectionIcon(target), null, tint = Gold)
                         Spacer(Modifier.width(12.dp))
                         Text(title, modifier = Modifier.weight(1f), color = Ink, fontWeight = FontWeight.Medium)
                         Icon(Icons.Default.ChevronLeft, null, tint = Green)
