@@ -16,7 +16,12 @@ data class PrayerSchedule(
     val maghrib: Date,
     val isha: Date
 ) {
-    fun nextPrayer(now: Date = Date()): Pair<String, Date> {\n        val items = listOf("الفجر" to fajr, "الشروق" to sunrise, "الظهر" to dhuhr, "العصر" to asr, "المغرب" to maghrib, "العشاء" to isha)\n        return items.firstOrNull { it.second.after(now) } ?: items.first()\n    }\n\n    fun asRows(locale: Locale = Locale.getDefault()): List<Pair<String, String>> {
+    fun nextPrayer(now: Date = Date()): Pair<String, Date> {
+        val items = listOf("الفجر" to fajr, "الشروق" to sunrise, "الظهر" to dhuhr, "العصر" to asr, "المغرب" to maghrib, "العشاء" to isha)
+        return items.firstOrNull { it.second.after(now) } ?: items.first()
+    }
+
+    fun asRows(locale: Locale = Locale.getDefault()): List<Pair<String, String>> {
         val formatter = SimpleDateFormat("HH:mm", locale)
         return listOf(
             "الفجر" to formatter.format(fajr),
