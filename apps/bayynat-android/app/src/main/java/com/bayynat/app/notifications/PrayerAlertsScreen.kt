@@ -39,6 +39,21 @@ fun PrayerAlertsScreenContent(onOpenPrayerTimes: () -> Unit) {
     }
     var exactAlarmGranted by remember { mutableStateOf(PrayerAlarmScheduler.canScheduleExact(context)) }
     var message by remember { mutableStateOf<String?>(null) }
+    var soundLabel by remember { mutableStateOf("نغمة النظام الافتراضية") }
+
+    val soundPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+            PrayerNotifications.setCustomSound(context, uri)
+            soundLabel = uri.lastPathSegment ?: "ملف أذان مخصص"
+            message = "تم اختيار ملف الصوت. قد تحتاج إلى السماح بصوته من إعدادات قناة الإشعار في Android."
+        }
+    }
 
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
