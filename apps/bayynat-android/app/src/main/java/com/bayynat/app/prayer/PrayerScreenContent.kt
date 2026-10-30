@@ -37,14 +37,14 @@ import com.batoulapps.adhan.CalculationMethod
 import com.bayynat.app.core.PrayerCalculator
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.google.android.gms.tasks.CancellationTokenSource
+import com.google.android.gms.tasks.CancellationTokenSource\nimport com.bayynat.app.widget.PrayerWidgetUpdater\nimport kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
 @Composable
 fun PrayerScreenContent() {
     val context = LocalContext.current
-    val fused = remember(context) { LocationServices.getFusedLocationProviderClient(context) }
+    val fused = remember(context) { LocationServices.getFusedLocationProviderClient(context) }\n    val scope = rememberCoroutineScope()
     var latitude by remember { mutableStateOf("") }
     var longitude by remember { mutableStateOf("") }
     var locationLabel by remember { mutableStateOf("لم يتم تحديد الموقع") }
@@ -89,8 +89,14 @@ fun PrayerScreenContent() {
             error = "أدخل خط العرض وخط الطول أو حدّد موقع الجهاز."
             return
         }
-        runCatching { PrayerCalculator.calculate(lat, lon, method = method).asRows() }
-            .onSuccess { schedule = it; error = null }
+        runCatching { PrayerCalculator.calculate(lat, lon, method = method) }
+            .onSuccess { result ->
+                schedule = result.asRows()
+                error = null
+                val next = result.nextPrayer()
+                val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(next.second)
+                scope.launch { PrayerWidgetUpdater.update(context, next.first, time, locationLabel) }
+            }
             .onFailure { error = "تعذّر حساب المواقيت: تحقق من الإحداثيات وطريقة الحساب." }
     }
 
