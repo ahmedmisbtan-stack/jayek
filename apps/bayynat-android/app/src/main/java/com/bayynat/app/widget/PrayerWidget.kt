@@ -1,7 +1,7 @@
 package com.bayynat.app.widget
 
 import android.content.Context
-import android.graphics.Color
+import androidx.compose.ui.graphics.Color
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.action.actionStartActivity
@@ -48,21 +48,21 @@ class PrayerWidget : GlanceAppWidget() {
             val location = state[locationKey] ?: "بيّنات"
             Column(
                 modifier = GlanceModifier.fillMaxSize()
-                    .background(ColorProvider(Color.rgb(8, 38, 76)))
+                    .background(ColorProvider(Color(0xFF08264C)))
                     .padding(14.dp)
                     .clickable(actionStartActivity<MainActivity>()),
                 verticalAlignment = Alignment.Vertical.CenterVertically,
                 horizontalAlignment = Alignment.Horizontal.Start
             ) {
-                Text("بيّنات", style = TextStyle(color = ColorProvider(Color.rgb(217, 154, 50)), fontSize = 13.sp, fontWeight = FontWeight.Bold))
+                Text("بيّنات", style = TextStyle(color = ColorProvider(Color(0xFFD99A32)), fontSize = 13.sp, fontWeight = FontWeight.Bold))
                 Spacer(GlanceModifier.height(5.dp))
-                Text("الصلاة القادمة", style = TextStyle(color = ColorProvider(Color.WHITE), fontSize = 12.sp))
+                Text("الصلاة القادمة", style = TextStyle(color = ColorProvider(Color.White), fontSize = 12.sp))
                 Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
                     Text(prayer, style = TextStyle(color = ColorProvider(Color.WHITE), fontSize = 20.sp, fontWeight = FontWeight.Bold))
                     Spacer(GlanceModifier.width(10.dp))
                     Text(time, style = TextStyle(color = ColorProvider(Color.rgb(217, 154, 50)), fontSize = 22.sp, fontWeight = FontWeight.Bold))
                 }
-                Text(location, style = TextStyle(color = ColorProvider(Color.LTGRAY), fontSize = 10.sp))
+                Text(location, style = TextStyle(color = ColorProvider(Color.LightGray), fontSize = 10.sp))
             }
         }
     }
