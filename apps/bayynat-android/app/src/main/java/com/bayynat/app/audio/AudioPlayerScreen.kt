@@ -14,6 +14,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
@@ -37,6 +39,8 @@ fun AudioPlayerScreenContent() {
     var surahNumber by remember { mutableStateOf("1") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var reciter by remember { mutableStateOf("ar.alafasy") }
+    var reciterMenu by remember { mutableStateOf(false) }
     DisposableEffect(player) {
         onDispose { player.release() }
     }
@@ -58,7 +62,29 @@ fun AudioPlayerScreenContent() {
     ) {
         Text("الصوتيات", style = MaterialTheme.typography.headlineSmall)
         Text("اختر ملف تلاوة أو أذان من جهازك. لا يضم التطبيق تسجيلات محمية بحقوق نشر دون إذن.")
-        Text("التلاوة من مكتبة AlQuran Cloud — القارئ مشاري العفاسي")
+        Text("اختر القارئ من مكتبة AlQuran Cloud")
+        OutlinedButton(onClick = { reciterMenu = true }, modifier = Modifier.fillMaxWidth()) {
+            Text("القارئ: " + when (reciter) {
+                "ar.husary" -> "محمود خليل الحصري"
+                "ar.minshawi" -> "محمد صديق المنشاوي"
+                "ar.sudais" -> "عبدالرحمن السديس"
+                "ar.shuraim" -> "سعود الشريم"
+                "ar.abdulbasit" -> "عبد الباسط عبد الصمد"
+                "ar.ajamy" -> "أحمد العجمي"
+                else -> "مشاري العفاسي"
+            })
+        }
+        DropdownMenu(expanded = reciterMenu, onDismissRequest = { reciterMenu = false }) {
+            listOf(
+                "ar.alafasy" to "مشاري العفاسي",
+                "ar.husary" to "محمود خليل الحصري",
+                "ar.minshawi" to "محمد صديق المنشاوي",
+                "ar.sudais" to "عبدالرحمن السديس",
+                "ar.shuraim" to "سعود الشريم",
+                "ar.abdulbasit" to "عبد الباسط عبد الصمد",
+                "ar.ajamy" to "أحمد العجمي"
+            ).forEach { (id, name) -> DropdownMenuItem(text = { Text(name) }, onClick = { reciter = id; reciterMenu = false }) }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
                 value = surahNumber,
@@ -78,7 +104,7 @@ fun AudioPlayerScreenContent() {
                             loading = true
                             error = null
                             try {
-                                val audio = withContext(Dispatchers.IO) { repository.getSurahAudio(number) }
+                                val audio = withContext(Dispatchers.IO) { repository.getSurahAudio(number, reciter) }
                                 player.playPlaylist(audio.ayahs.map { it.audio }, audio.name)
                             } catch (_: Exception) {
                                 error = "تعذّر تحميل التلاوة. تحقق من الاتصال وحاول مجددًا."
