@@ -307,7 +307,12 @@ private fun SimpleSectionScreen(title: String, description: String) {
 
 @Composable
 private fun HijriCalendarScreen() {
-    val hijri = remember { HijriDateProvider.today(Date()) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("bayynat_hijri", 0) }
+    var offset by remember { mutableIntStateOf(prefs.getInt("day_offset", 0).coerceIn(-2, 2)) }
+    val hijri = remember(offset) {
+        HijriDateProvider.today(Date(System.currentTimeMillis() + offset * 86_400_000L))
+    }
     Page("التقويم الهجري") {
         Card(colors = CardDefaults.cardColors(containerColor = Navy), shape = RoundedCornerShape(22.dp)) {
             Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -316,7 +321,18 @@ private fun HijriCalendarScreen() {
                 Text(hijri.year + " هـ", color = Color.White)
             }
         }
-        Text("يعتمد هذا العرض على تقويم أم القرى/الإسلامي المحلي في Android، وقد يختلف عن بدايات الشهور المعتمدة في موقع بيّنات بحسب رؤية الهلال والاشتراك بجزء من الليل.")
+        Text("فرق ضبط التاريخ: $offset يوم")
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = {
+                offset = (offset - 1).coerceAtLeast(-2)
+                prefs.edit().putInt("day_offset", offset).apply()
+            }) { Text("اليوم السابق") }
+            OutlinedButton(onClick = {
+                offset = (offset + 1).coerceAtMost(2)
+                prefs.edit().putInt("day_offset", offset).apply()
+            }) { Text("اليوم التالي") }
+        }
+        Text("يمكن ضبط التاريخ يدويًا لمطابقة إعلان بداية الشهر في بلدك أو لدى المرجع؛ فالتقويم الحسابي قد يختلف عن الرؤية الشرعية.")
     }
 }
 
