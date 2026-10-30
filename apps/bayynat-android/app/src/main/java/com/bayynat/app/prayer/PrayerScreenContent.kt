@@ -129,6 +129,7 @@ fun PrayerScreenContent() {
                 val next = result.nextPrayer()
                 nextPrayerName = next.first
                 nextPrayerAt = next.second
+                if (locationLabel == "لم يتم تحديد الموقع") locationLabel = "إحداثيات يدوية"
                 context.getSharedPreferences("bayynat_prayer_location", 0).edit()
                     .putString("latitude", lat.toString())
                     .putString("longitude", lon.toString())
