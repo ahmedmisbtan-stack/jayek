@@ -33,6 +33,7 @@ import com.bayynat.app.audio.AudioPlayerScreenContent
 import com.bayynat.app.notifications.PrayerAlertsScreenContent
 import com.bayynat.app.names.NamesScreenContent
 import com.bayynat.app.azkar.AzkarScreenContent
+import com.bayynat.app.content.HaqibatScreenContent
 import com.bayynat.app.core.HijriDateProvider
 import java.util.Date
 
@@ -159,7 +160,7 @@ private fun BayynatApp() {
                 15 -> OfficialContentScreen("كتابات", "https://www.bayynat.org.lb/article/category/31984/%D9%83%D8%AA%D8%A7%D8%A8%D8%A7%D8%AA/ar", "كتابات فكرية وثقافية واجتماعية")
                 16 -> OfficialContentScreen("محاضرات", "https://www.bayynat.org.lb/article/category/31983/%D9%85%D8%AD%D8%A7%D8%B6%D8%B1%D8%A7%D8%AA/ar", "محاضرات ودروس مرئية ومسموعة")
                 17 -> OfficialContentScreen("مقابلات", "https://www.bayynat.org.lb/article/category/1050/%D9%85%D9%82%D8%A7%D8%A8%D9%84%D8%A7%D8%AA/ar", "مقابلات وحوارات فكرية وتربوية")
-                12 -> OfficialContentScreen("حقيبة بيّنات", "https://www.bayynat.org.lb/article/category/24117/%D8%AD%D9%82%D9%8A%D8%A8%D8%A9-%D8%A8%D9%8A%D9%86%D8%A7%D8%AA/ar", "الأعمال والمستحبات، المناسبات، المواقيت، الدعاء، الصحيفة السجادية، الأدعية، المناجيات والزيارات")
+                12 -> HaqibatScreenContent()
                 else -> MoreScreen(onSelect = { selected = it })
             }
         }
