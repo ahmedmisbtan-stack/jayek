@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
@@ -19,17 +20,29 @@ import com.bayynat.app.R
 object PrayerNotifications {
     const val CHANNEL_ID = "bayynat_prayer_alerts"
     private const val CHANNEL_NAME = "تنبيهات الصلاة"
+    private const val PREFS = "bayynat_prayer_sound"
+    private const val CHANNEL_KEY = "channel_id"
 
-    fun createChannel(context: Context) {
+    fun createChannel(context: Context) = createChannel(context, CHANNEL_ID, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM))
+
+    fun setCustomSound(context: Context, soundUri: Uri) {
+        val customId = "bayynat_prayer_" + soundUri.toString().hashCode().toUInt().toString(16)
+        createChannel(context, customId, soundUri)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(CHANNEL_KEY, customId).apply()
+    }
+
+    private fun activeChannelId(context: Context): String =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(CHANNEL_KEY, CHANNEL_ID) ?: CHANNEL_ID
+
+    private fun createChannel(context: Context, channelId: String, sound: Uri?) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java)
-        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
-        val sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        if (manager.getNotificationChannel(channelId) != null) return
         val attributes = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_ALARM)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
-        val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH).apply {
+        val channel = NotificationChannel(channelId, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH).apply {
             description = "إشعارات أوقات الصلاة التي يفعّلها المستخدم"
             setSound(sound, attributes)
             enableVibration(true)
@@ -44,7 +57,7 @@ object PrayerNotifications {
             context, 7001, Intent(context, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, activeChannelId(context))
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("حان وقت صلاة $prayerName")
             .setContentText("حيّ على الصلاة")
