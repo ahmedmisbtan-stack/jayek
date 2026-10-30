@@ -115,5 +115,16 @@ fun AzkarScreenContent() {
             }
         }
         Text("يُحفظ عدّادك على الجهاز. الأذكار المعروضة هنا محدودة بما تم توثيق مرجعه، وسيُضاف باقي المحتوى بعد مراجعة مصادره.")
+        OutlinedButton(
+            onClick = {
+                context.startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://www.bayynat.org.lb/article/category/24735/%D8%AF%D8%B9%D8%A7%D8%A1/ar")
+                    )
+                )
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("فتح مكتبة الدعاء الرسمية في بيّنات") }
     }
 }
