@@ -93,7 +93,13 @@ object PrayerAlarmScheduler {
                 data = android.net.Uri.parse("package:" + context.packageName)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            context.startActivity(intent)
+            runCatching { context.startActivity(intent) }.onFailure {
+                val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = android.net.Uri.parse("package:" + context.packageName)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(fallback)
+            }
         }
     }
 
