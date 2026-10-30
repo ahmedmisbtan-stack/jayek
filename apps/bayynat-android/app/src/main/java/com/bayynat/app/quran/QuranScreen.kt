@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -38,6 +39,8 @@ import kotlinx.coroutines.withContext
 fun QuranScreenContent() {
     val context = LocalContext.current
     val repository = remember(context) { QuranRepository(context) }
+    val preferences = remember(context) { context.getSharedPreferences("quran_cache_v1", 0) }
+    var lastSurahNumber by remember { mutableIntStateOf(preferences.getInt("last_surah", 0)) }
     val scope = rememberCoroutineScope()
     var surahs by remember { mutableStateOf<List<SurahDto>>(emptyList()) }
     var selected by remember { mutableStateOf<SurahDetailDto?>(null) }
@@ -67,6 +70,24 @@ fun QuranScreenContent() {
         if (selected == null) {
             Text("القرآن الكريم", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text("فهرس السور — نص عثماني، مع حفظ السور التي تفتحها للقراءة دون اتصال")
+            if (lastSurahNumber in 1..114 && !loading) {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            loading = true
+                            error = null
+                            try {
+                                selected = withContext(Dispatchers.IO) { repository.getSurah(lastSurahNumber) }
+                            } catch (_: Exception) {
+                                error = "تعذّر استعادة آخر موضع قراءة."
+                            } finally {
+                                loading = false
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("متابعة آخر قراءة — سورة رقم $lastSurahNumber") }
+            }
             when {
                 loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                 error != null && surahs.isEmpty() -> {
@@ -82,6 +103,8 @@ fun QuranScreenContent() {
                                     error = null
                                     try {
                                         selected = withContext(Dispatchers.IO) { repository.getSurah(surah.number) }
+                                        lastSurahNumber = surah.number
+                                        preferences.edit().putInt("last_surah", surah.number).putInt("last_ayah", 1).apply()
                                     } catch (_: Exception) {
                                         error = "تعذّر فتح السورة. تحقق من الاتصال وحاول مجددًا."
                                     } finally {
