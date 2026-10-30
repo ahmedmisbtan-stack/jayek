@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -39,16 +39,19 @@ import com.batoulapps.adhan.CalculationMethod
 import com.bayynat.app.core.PrayerCalculator
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.google.android.gms.tasks.CancellationTokenSource\nimport com.bayynat.app.widget.PrayerWidgetUpdater
+import com.google.android.gms.tasks.CancellationTokenSource
+import com.bayynat.app.widget.PrayerWidgetUpdater
 import com.bayynat.app.notifications.PrayerAlarmScheduler
-import com.bayynat.app.notifications.PrayerNotifications\nimport kotlinx.coroutines.launch
+import com.bayynat.app.notifications.PrayerNotifications
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
 @Composable
 fun PrayerScreenContent() {
     val context = LocalContext.current
-    val fused = remember(context) { LocationServices.getFusedLocationProviderClient(context) }\n    val scope = rememberCoroutineScope()
+    val fused = remember(context) { LocationServices.getFusedLocationProviderClient(context) }
+    val scope = rememberCoroutineScope()
     var latitude by remember { mutableStateOf("") }
     var longitude by remember { mutableStateOf("") }
     var locationLabel by remember { mutableStateOf("لم يتم تحديد الموقع") }
