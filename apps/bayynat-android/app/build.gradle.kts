@@ -42,7 +42,7 @@ dependencies {
     implementation("androidx.glance:glance:1.2.0")
     implementation("androidx.glance:glance-appwidget:1.2.0")
 
-    // Audio playback for Quran recitations and adhan streams/files.
+    // Quran text API; responses are cached locally by the repository.\n    implementation("com.squareup.retrofit2:retrofit:2.11.0")\n    implementation("com.squareup.retrofit2:converter-gson:2.11.0")\n\n    // Audio playback for Quran recitations and adhan streams/files.
     implementation("androidx.media3:media3-exoplayer:1.5.1")
     implementation("androidx.media3:media3-session:1.5.1")
 
