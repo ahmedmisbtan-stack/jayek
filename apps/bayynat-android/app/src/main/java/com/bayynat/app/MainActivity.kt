@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bayynat.app.quran.QuranScreenContent
+import com.bayynat.app.prayer.PrayerScreenContent
 
 private val Gold = Color(0xFFD99A32)
 private val Green = Color(0xFF176B55)
@@ -196,23 +197,7 @@ private fun QuranScreen() {
 
 @Composable
 private fun PrayerScreen() {
-    Page("مواقيت الصلاة") {
-        Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
-            Column(Modifier.fillMaxWidth().padding(18.dp)) {
-                Text("مصر — طريقة الحساب المصرية", color = Green, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(6.dp))
-                Text("سيتم تحديد الموقع وحساب المواقيت محليًا بعد منح إذن الموقع.")
-            }
-        }
-        listOf("الفجر", "الشروق", "الظهر", "العصر", "المغرب", "العشاء").forEach { name ->
-            ListItem(
-                headlineContent = { Text(name) },
-                supportingContent = { Text("بانتظار تفعيل حساب المواقيت") },
-                leadingContent = { Icon(Icons.Default.Schedule, null, tint = Gold) },
-                colors = ListItemDefaults.colors(containerColor = Color.White)
-            )
-        }
-    }
+    PrayerScreenContent()
 }
 
 @Composable
