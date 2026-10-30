@@ -117,6 +117,20 @@ object PrayerAlarmScheduler {
         }
     }
 
+    fun scheduleNextFromSavedLocation(context: Context) {
+        val prefs = context.getSharedPreferences("bayynat_prayer_location", Context.MODE_PRIVATE)
+        val latitude = prefs.getString("latitude", null)?.toDoubleOrNull()
+        val longitude = prefs.getString("longitude", null)?.toDoubleOrNull()
+        if (latitude == null || longitude == null) return
+        val methodName = prefs.getString("method", CalculationMethod.MUSLIM_WORLD_LEAGUE.name)
+        val method = runCatching { CalculationMethod.valueOf(methodName ?: "") }
+            .getOrDefault(CalculationMethod.MUSLIM_WORLD_LEAGUE)
+        runCatching {
+            val next = PrayerCalculator.calculate(latitude, longitude, method = method).nextPrayer()
+            schedule(context, next.second.time, next.first)
+        }
+    }
+
     fun cancel(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
         val intent = Intent(context, PrayerAlarmReceiver::class.java)
@@ -132,6 +146,7 @@ object PrayerAlarmScheduler {
 class PrayerBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
+        PrayerAlarmScheduler.scheduleNextFromSavedLocation(context)
         val prefs = context.getSharedPreferences("bayynat_prayer_alarm", Context.MODE_PRIVATE)
         val trigger = prefs.getLong("trigger_time", 0L)
         val name = prefs.getString("prayer_name", null)
@@ -145,17 +160,6 @@ class PrayerAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val name = intent.getStringExtra(PrayerAlarmScheduler.EXTRA_PRAYER_NAME) ?: "الصلاة"
         PrayerNotifications.show(context, name)
-        val prefs = context.getSharedPreferences("bayynat_prayer_location", Context.MODE_PRIVATE)
-        val latitude = prefs.getString("latitude", null)?.toDoubleOrNull()
-        val longitude = prefs.getString("longitude", null)?.toDoubleOrNull()
-        if (latitude != null && longitude != null) {
-            val methodName = prefs.getString("method", CalculationMethod.MUSLIM_WORLD_LEAGUE.name)
-            val method = runCatching { CalculationMethod.valueOf(methodName ?: "") }
-                .getOrDefault(CalculationMethod.MUSLIM_WORLD_LEAGUE)
-            runCatching {
-                val next = PrayerCalculator.calculate(latitude, longitude, method = method).nextPrayer()
-                PrayerAlarmScheduler.schedule(context, next.second.time, next.first)
-            }
-        }
+        PrayerAlarmScheduler.scheduleNextFromSavedLocation(context)
     }
 }
