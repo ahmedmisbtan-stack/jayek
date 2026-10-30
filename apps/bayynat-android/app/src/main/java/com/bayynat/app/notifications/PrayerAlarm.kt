@@ -1,5 +1,6 @@
 package com.bayynat.app.notifications
 
+import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -53,6 +54,7 @@ object PrayerNotifications {
         manager.createNotificationChannel(channel)
     }
 
+    @SuppressLint("MissingPermission")
     fun show(context: Context, prayerName: String) {
         createChannel(context)
         val openIntent = PendingIntent.getActivity(
