@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <application
         android:allowBackup="true"
+        android:icon="@drawable/bayynat_mark"
+        android:roundIcon="@drawable/bayynat_mark"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">

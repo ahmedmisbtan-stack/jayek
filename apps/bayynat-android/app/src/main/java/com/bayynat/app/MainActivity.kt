@@ -14,16 +14,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.Image
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-private val Gold = Color(0xFFD99A32)
-private val Green = Color(0xFF176B55)
-private val Ivory = Color(0xFFFFF5E5)
-private val Ink = Color(0xFF49351F)
+private val Gold = Color(0xFFE8C27A)
+private val Green = Color(0xFF006B58)
+private val Navy = Color(0xFF08264C)
+private val Ivory = Color(0xFFFFF8EA)
+private val Ink = Color(0xFF18364A)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,8 +40,9 @@ class MainActivity : ComponentActivity() {
 private fun BayynatTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = lightColorScheme(
-            primary = Gold,
-            secondary = Green,
+            primary = Green,
+            secondary = Gold,
+            tertiary = Navy,
             background = Ivory,
             surface = Color.White,
             onBackground = Ink,
@@ -66,19 +71,31 @@ private fun BayynatApp() {
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text("بيّنات", color = Green, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Image(
+                            painter = painterResource(R.drawable.bayynat_mark),
+                            contentDescription = "شعار بيّنات",
+                            modifier = Modifier.size(38.dp)
+                        )
+                        Text("بيّنات", color = Navy, fontWeight = FontWeight.Bold)
+                    }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Ivory)
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
+            NavigationBar(containerColor = Color.White, contentColor = Green) {
                 destinations.forEachIndexed { index, item ->
                     NavigationBarItem(
                         selected = selected == index,
                         onClick = { selected = index },
                         icon = { Icon(item.icon, contentDescription = item.title) },
-                        label = { Text(item.title) }
+                        label = { Text(item.title) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = Green,
+                            selectedTextColor = Green,
+                            indicatorColor = Gold.copy(alpha = .22f)
+                        )
                     )
                 }
             }
@@ -104,18 +121,29 @@ private fun HomeScreen(onSelect: (Int) -> Unit) {
     ) {
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Green)
+            colors = CardDefaults.cardColors(containerColor = Navy)
         ) {
-            Column(Modifier.fillMaxWidth().padding(22.dp)) {
-                Text("السلام عليكم", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(6.dp))
-                Text("اجعل القرآن والذكر رفيق يومك", color = Color.White.copy(alpha = .9f))
-                Spacer(Modifier.height(18.dp))
-                Text("مواقيت الصلاة", color = Color.White.copy(alpha = .8f))
-                Text("سيتم حسابها حسب موقعك بعد تفعيل إذن الموقع", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+            Box(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Green, Navy)))) {
+                Column(Modifier.fillMaxWidth().padding(22.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(painterResource(R.drawable.bayynat_mark), "شعار بيّنات", Modifier.size(66.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text("بيّنات", color = Gold, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                            Text("رفيق يومك إلى الطمأنينة", color = Color.White.copy(alpha = .92f))
+                        }
+                    }
+                    Spacer(Modifier.height(20.dp))
+                    Text("السلام عليكم", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Text("اجعل القرآن والذكر رفيق يومك", color = Color.White.copy(alpha = .9f))
+                    Spacer(Modifier.height(18.dp))
+                    Text("مواقيت الصلاة", color = Gold, fontWeight = FontWeight.SemiBold)
+                    Text("سيتم حسابها حسب موقعك بعد تفعيل إذن الموقع", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                }
             }
         }
-        Text("أقسام بيّنات", style = MaterialTheme.typography.titleLarge, color = Green, fontWeight = FontWeight.Bold)
+        Text("أقسام بيّنات", style = MaterialTheme.typography.titleLarge, color = Navy, fontWeight = FontWeight.Bold)
         val sections = listOf(
             "القرآن الكريم" to 1,
             "مواقيت الصلاة والأذان" to 2,
@@ -153,7 +181,7 @@ private fun Page(title: String, body: @Composable ColumnScope.() -> Unit) {
         Modifier.fillMaxSize().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text(title, style = MaterialTheme.typography.headlineSmall, color = Green, fontWeight = FontWeight.Bold)
+        Text(title, style = MaterialTheme.typography.headlineSmall, color = Navy, fontWeight = FontWeight.Bold)
         body()
     }
 }
@@ -205,7 +233,7 @@ private fun AzkarScreen() {
         Button(
             onClick = { count++ },
             modifier = Modifier.fillMaxWidth().height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Gold)
+            colors = ButtonDefaults.buttonColors(containerColor = Green)
         ) { Text("تسبيح", color = Color.White) }
         OutlinedButton(onClick = { count = 0 }, modifier = Modifier.fillMaxWidth()) { Text("إعادة العداد", color = Green) }
         Text("سيتم إضافة أبواب أذكار الصباح والمساء والنوم والصلاة بمصادر موثقة.")
