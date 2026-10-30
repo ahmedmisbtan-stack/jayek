@@ -6,6 +6,7 @@ import com.batoulapps.adhan.DateComponents
 import com.batoulapps.adhan.PrayerTimes
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Calendar
 import java.util.Locale
 
 data class PrayerSchedule(
@@ -18,7 +19,7 @@ data class PrayerSchedule(
 ) {
     fun nextPrayer(now: Date = Date()): Pair<String, Date> {
         val items = listOf("الفجر" to fajr, "الشروق" to sunrise, "الظهر" to dhuhr, "العصر" to asr, "المغرب" to maghrib, "العشاء" to isha)
-        return items.firstOrNull { it.second.after(now) } ?: items.first()
+        return items.firstOrNull { it.second.after(now) } ?: (\n            "الفجر" to Calendar.getInstance().apply { time = fajr; add(Calendar.DAY_OF_YEAR, 1) }.time\n        )
     }
 
     fun asRows(locale: Locale = Locale.getDefault()): List<Pair<String, String>> {
