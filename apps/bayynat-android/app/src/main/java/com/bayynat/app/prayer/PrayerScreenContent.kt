@@ -53,12 +53,18 @@ fun PrayerScreenContent() {
     val context = LocalContext.current
     val fused = remember(context) { LocationServices.getFusedLocationProviderClient(context) }
     val scope = rememberCoroutineScope()
-    var latitude by remember { mutableStateOf("") }
-    var longitude by remember { mutableStateOf("") }
-    var locationLabel by remember { mutableStateOf("لم يتم تحديد الموقع") }
+    val savedLocation = remember(context) { context.getSharedPreferences("bayynat_prayer_location", 0) }
+    var latitude by remember(context) { mutableStateOf(savedLocation.getString("latitude", "") ?: "") }
+    var longitude by remember(context) { mutableStateOf(savedLocation.getString("longitude", "") ?: "") }
+    var locationLabel by remember(context) { mutableStateOf(savedLocation.getString("location", "لم يتم تحديد الموقع") ?: "لم يتم تحديد الموقع") }
     var schedule by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
-    var method by remember { mutableStateOf(CalculationMethod.MUSLIM_WORLD_LEAGUE) }
+    var method by remember(context) {
+        mutableStateOf(
+            runCatching { CalculationMethod.valueOf(savedLocation.getString("method", CalculationMethod.MUSLIM_WORLD_LEAGUE.name) ?: "") }
+                .getOrDefault(CalculationMethod.MUSLIM_WORLD_LEAGUE)
+        )
+    }
     var methodMenu by remember { mutableStateOf(false) }
     var nextPrayerName by remember { mutableStateOf<String?>(null) }
     var nextPrayerAt by remember { mutableStateOf<java.util.Date?>(null) }
