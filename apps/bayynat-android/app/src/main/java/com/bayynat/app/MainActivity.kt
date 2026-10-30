@@ -49,6 +49,7 @@ private fun BayynatTheme(content: @Composable () -> Unit) {
 
 private data class Destination(val title: String, val icon: ImageVector)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BayynatApp() {
     val destinations = listOf(
