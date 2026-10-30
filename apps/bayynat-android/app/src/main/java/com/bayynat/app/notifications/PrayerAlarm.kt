@@ -1,0 +1,114 @@
+package com.bayynat.app.notifications
+
+import android.app.AlarmManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.media.AudioAttributes
+import android.media.RingtoneManager
+import android.os.Build
+import android.provider.Settings
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import com.bayynat.app.MainActivity
+import com.bayynat.app.R
+
+object PrayerNotifications {
+    const val CHANNEL_ID = "bayynat_prayer_alerts"
+    private const val CHANNEL_NAME = "تنبيهات الصلاة"
+
+    fun createChannel(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = context.getSystemService(NotificationManager::class.java)
+        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
+        val sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        val attributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH).apply {
+            description = "إشعارات أوقات الصلاة التي يفعّلها المستخدم"
+            setSound(sound, attributes)
+            enableVibration(true)
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+        }
+        manager.createNotificationChannel(channel)
+    }
+
+    fun show(context: Context, prayerName: String) {
+        createChannel(context)
+        val openIntent = PendingIntent.getActivity(
+            context, 7001, Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.bayynat_mark)
+            .setContentTitle("حان وقت صلاة $prayerName")
+            .setContentText("حيّ على الصلاة")
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setContentIntent(openIntent)
+            .build()
+        runCatching {
+            NotificationManagerCompat.from(context).notify(prayerName.hashCode(), notification)
+        }
+    }
+}
+
+object PrayerAlarmScheduler {
+    const val EXTRA_PRAYER_NAME = "extra_prayer_name"
+    private const val REQUEST_CODE = 7002
+
+    fun canScheduleExact(context: Context): Boolean {
+        val manager = context.getSystemService(AlarmManager::class.java)
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.S || manager.canScheduleExactAlarms()
+    }
+
+    fun openExactAlarmSettings(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                data = android.net.Uri.parse("package:" + context.packageName)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }
+    }
+
+    fun schedule(context: Context, triggerAtMillis: Long, prayerName: String) {
+        require(triggerAtMillis > System.currentTimeMillis()) { "Alarm time must be in the future" }
+        val manager = context.getSystemService(AlarmManager::class.java)
+        val intent = Intent(context, PrayerAlarmReceiver::class.java)
+            .putExtra(EXTRA_PRAYER_NAME, prayerName)
+        val pending = PendingIntent.getBroadcast(
+            context, REQUEST_CODE, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !manager.canScheduleExactAlarms()) {
+            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pending)
+        } else {
+            manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pending)
+        }
+    }
+
+    fun cancel(context: Context) {
+        val intent = Intent(context, PrayerAlarmReceiver::class.java)
+        val pending = PendingIntent.getBroadcast(
+            context, REQUEST_CODE, intent,
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        ) ?: return
+        context.getSystemService(AlarmManager::class.java).cancel(pending)
+        pending.cancel()
+    }
+}
+
+class PrayerAlarmReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val name = intent.getStringExtra(PrayerAlarmScheduler.EXTRA_PRAYER_NAME) ?: "الصلاة"
+        PrayerNotifications.show(context, name)
+    }
+}
