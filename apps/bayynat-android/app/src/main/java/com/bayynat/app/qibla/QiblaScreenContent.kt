@@ -2,6 +2,7 @@ package com.bayynat.app.qibla
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.hardware.GeomagneticField
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -82,7 +83,9 @@ fun QiblaScreenContent() {
     val bearing = if (latitude != null && longitude != null) {
         runCatching { QiblaCalculator.bearing(latitude!!, longitude!!) }.getOrNull()
     } else null
-    val relative = if (bearing != null && heading != null) (bearing - heading!! + 360.0) % 360.0 else null
+    val declination = if (latitude != null && longitude != null) GeomagneticField(latitude!!.toFloat(), longitude!!.toFloat(), 0f, System.currentTimeMillis()).declination.toDouble() else 0.0
+    val trueHeading = if (heading != null) (heading!! + declination + 360.0) % 360.0 else null
+    val relative = if (bearing != null && trueHeading != null) (bearing - trueHeading + 360.0) % 360.0 else null
 
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp),
