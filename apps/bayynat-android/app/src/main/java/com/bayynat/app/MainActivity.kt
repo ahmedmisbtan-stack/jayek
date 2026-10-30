@@ -1,6 +1,8 @@
 package com.bayynat.app
 
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -119,6 +121,10 @@ private fun BayynatApp() {
                 6 -> SimpleSectionScreen("التنبيهات والأذان", "إدارة أذونات الإشعارات والأذان المحلي ستظهر هنا بعد ربط مواقيت الموقع وجدولة الصلوات.")
                 7 -> SimpleSectionScreen("أسماء الله الحسنى", "سيُعرض فهرس الأسماء ومعانيها مع إسناد المصدر قبل اعتماد المحتوى.")
                 8 -> HijriCalendarScreen()
+                9 -> OfficialContentScreen("الفقه", "https://www.bayynat.org.lb/article/category/25910/%D9%81%D9%82%D9%87/ar", "الرسائل العملية، فقه الشريعة، كيفية تأدية العبادات، مصطلحات فقهية، مناسك الحج")
+                10 -> OfficialContentScreen("المكتبة", "https://www.bayynat.org.lb/library/category/25922/%D8%A7%D9%84%D9%85%D9%83%D8%AA%D8%A8%D8%A9/ar", "قرآنيات، كتب عن السيد، الأسرة والمجتمع، أهل البيت، الأخلاق، الحديث، الدعاء، الفكر الإسلامي")
+                11 -> OfficialContentScreen("أرشيف السيد", "https://www.bayynat.org.lb/article/category/440/%D8%A3%D8%B1%D8%B4%D9%8A%D9%81-%D8%A7%D9%84%D8%B3%D9%8A%D8%AF/ar", "الخطب والبيانات والأخبار والسيرة والمقابلات والحوارات والأناشيد")
+                12 -> OfficialContentScreen("حقيبة بيّنات", "https://www.bayynat.org.lb/article/category/24117/%D8%AD%D9%82%D9%8A%D8%A8%D8%A9-%D8%A8%D9%8A%D9%86%D8%A7%D8%AA/ar", "الأعمال والمستحبات، المناسبات، المواقيت، الدعاء، الصحيفة السجادية، الأدعية، المناجيات والزيارات")
                 else -> MoreScreen(onSelect = { selected = it })
             }
         }
@@ -272,5 +278,22 @@ private fun HijriCalendarScreen() {
             }
         }
         Text("يعتمد هذا العرض على تقويم أم القرى/الإسلامي المحلي في Android، وقد يختلف عن بدايات الشهور المعتمدة في موقع بيّنات بحسب رؤية الهلال والاشتراك بجزء من الليل.")
+    }
+}
+
+@Composable
+private fun OfficialContentScreen(title: String, url: String, contents: String) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    Page(title) {
+        Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(contents, color = Ink)
+                Button(
+                    onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("فتح القسم الأصلي في موقع بيّنات") }
+                Text("تُفتح المادة الأصلية في المتصفح لضمان عرض النصوص والوثائق والوسائط من مصدرها الرسمي دون نسخ غير مصرح به.")
+            }
+        }
     }
 }
