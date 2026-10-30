@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">بيّنات</string>
+    <string name="prayer_widget_name">مواقيت الصلاة - بيّنات</string>
+    <string name="prayer_widget_description">عرض الصلاة القادمة ووقتها</string>
+</resources>
