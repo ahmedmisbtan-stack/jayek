@@ -99,6 +99,7 @@ private fun BayynatApp() {
         Destination("المزيد", Icons.Default.GridView)
     )
     var selected by remember { mutableIntStateOf(0) }
+    val hijriToday = remember { HijriDateProvider.today() }
     BackHandler(enabled = selected >= 5) { selected = 4 }
 
     Scaffold(
@@ -112,7 +113,10 @@ private fun BayynatApp() {
                             contentDescription = "شعار بيّنات",
                             modifier = Modifier.size(38.dp)
                         )
-                        Text("بيّنات", color = Navy, fontWeight = FontWeight.Bold)
+                        Column {
+                            Text("بيّنات", color = Navy, fontWeight = FontWeight.Bold)
+                            Text(hijriToday.full, color = Ink, style = MaterialTheme.typography.labelSmall)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Ivory)
