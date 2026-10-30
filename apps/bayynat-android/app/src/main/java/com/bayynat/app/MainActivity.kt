@@ -74,7 +74,8 @@ private fun BayynatApp() {
         Destination("الأذكار", Icons.Default.Favorite),
         Destination("المزيد", Icons.Default.GridView)
     )
-    var selected by remember { mutableIntStateOf(0) }\n    BackHandler(enabled = selected >= 5) { selected = 4 }
+    var selected by remember { mutableIntStateOf(0) }
+    BackHandler(enabled = selected >= 5) { selected = 4 }
 
     Scaffold(
         containerColor = Ivory,
