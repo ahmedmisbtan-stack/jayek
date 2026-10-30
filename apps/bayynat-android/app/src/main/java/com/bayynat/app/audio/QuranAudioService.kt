@@ -25,8 +25,8 @@ class QuranAudioService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
     override fun onDestroy() {
-        mediaSession?.release()
         player?.release()
+        mediaSession?.release()
         mediaSession = null
         player = null
         super.onDestroy()
