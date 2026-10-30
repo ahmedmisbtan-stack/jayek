@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,6 +49,8 @@ fun QiblaScreenContent() {
     val heading by compass.heading.collectAsState()
     var latitude by remember { mutableStateOf<Double?>(null) }
     var longitude by remember { mutableStateOf<Double?>(null) }
+    var manualLatitude by remember { mutableStateOf("") }
+    var manualLongitude by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
     DisposableEffect(compass) {
@@ -99,6 +103,33 @@ fun QiblaScreenContent() {
             if (fine || coarse) locate()
             else permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
         }) { Text("تحديد موقعي") }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = manualLatitude,
+                onValueChange = { manualLatitude = it },
+                label = { Text("خط العرض") },
+                modifier = Modifier.weight(1f),
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = manualLongitude,
+                onValueChange = { manualLongitude = it },
+                label = { Text("خط الطول") },
+                modifier = Modifier.weight(1f),
+                singleLine = true
+            )
+        }
+        OutlinedButton(onClick = {
+            val lat = manualLatitude.toDoubleOrNull()
+            val lon = manualLongitude.toDoubleOrNull()
+            if (lat == null || lon == null || lat !in -90.0..90.0 || lon !in -180.0..180.0) {
+                error = "أدخل إحداثيات صحيحة."
+            } else {
+                latitude = lat
+                longitude = lon
+                error = null
+            }
+        }) { Text("استخدم الإحداثيات اليدوية") }
 
         if (bearing != null && relative != null) {
             Canvas(modifier = Modifier.size(240.dp)) {
