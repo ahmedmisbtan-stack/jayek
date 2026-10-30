@@ -39,6 +39,16 @@
         </service>
 
         <receiver
+            android:name=".notifications.PrayerBootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name=".notifications.PrayerAlarmReceiver"
             android:enabled="true"
             android:exported="false" />
