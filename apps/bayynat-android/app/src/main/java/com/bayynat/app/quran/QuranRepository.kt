@@ -59,8 +59,13 @@ class QuranRepository(context: Context) {
 
     suspend fun getSurahs(): List<SurahDto> {
         return try {
-            api.getSurahs().data.also { result ->
-                preferences.edit().putString(SURAHS_KEY, gson.toJson(result)).apply()
+            api.getSurahs().let { response ->
+                require(response.code == 200 && response.status == "OK" && response.data.size == 114) {
+                    "Quran catalogue response was incomplete or invalid"
+                }
+                response.data.also { result ->
+                    preferences.edit().putString(SURAHS_KEY, gson.toJson(result)).apply()
+                }
             }
         } catch (error: Exception) {
             readCachedSurahs() ?: throw error
@@ -70,8 +75,16 @@ class QuranRepository(context: Context) {
     suspend fun getSurah(number: Int): SurahDetailDto {
         require(number in 1..114) { "Surah number must be between 1 and 114" }
         return try {
-            api.getSurah(number).data.also { result ->
-                preferences.edit().putString("$SURAH_PREFIX$number", gson.toJson(result)).apply()
+            api.getSurah(number).let { response ->
+                require(
+                    response.code == 200 &&
+                        response.status == "OK" &&
+                        response.data.number == number &&
+                        response.data.ayahs.size == response.data.numberOfAyahs
+                ) { "Surah response was incomplete or invalid" }
+                response.data.also { result ->
+                    preferences.edit().putString("$SURAH_PREFIX$number", gson.toJson(result)).apply()
+                }
             }
         } catch (error: Exception) {
             readCachedSurah(number) ?: throw error
