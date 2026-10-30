@@ -1,29 +1,38 @@
-# بيّنات — Android Native
+# بيّنات — Android
 
-مشروع مستقل لتطبيق **بيّنات** باستخدام Kotlin وJetpack Compose.
+تطبيق Android أصلي باستخدام Kotlin وJetpack Compose وMaterial 3، وليس WebView.
 
-- Application ID: `com.bayynat.app`
-- Android minimum: 8.0 (API 26)
-- Compile/Target SDK: 35
-- JDK: 17
-- UI: Jetpack Compose + Material 3
-- Palette: gold orange `#D99A32`, dark green `#176B55`, warm ivory `#FFF5E5`
+## مرجع المحتوى وتجربة الموقع
 
-## Build locally
-Open this directory as a Gradle project in Android Studio, or run:
-`gradle :app:assembleDebug`
+الموقع المرجعي المعتمد: https://www.bayynat.org.lb/
 
-## Current foundation
-Arabic RTL-ready Compose shell, bottom navigation, home dashboard, Quran section placeholder, prayer-times placeholder, and interactive tasbeeh counter.
+بنية المحتوى التي يجب تمثيلها داخل التطبيق تشمل:
+- القرآن والتفسير والمسائل القرآنية.
+- الفقه والرسائل العملية وكيفية تأدية العبادات.
+- المكتبة والكتب والقرآنيات والحديث والأخلاق.
+- حقيبة بيّنات: الأعمال والمستحبات، المناسبات، المواقيت، الدعاء، الصحيفة السجادية، الأدعية المشهورة، المناجيات، أدعية أيام الأسبوع والزيارات.
+- أرشيف السيد: الخطب والبيانات والأخبار والسيرة والمقابلات.
+- أخبار بيّنات والكتابات والمحاضرات والمقابلات.
+- خدمات التطبيق المساندة: مواقيت الصلاة، التنبيهات والأذان، القبلة، الأذكار والسبحة، أسماء الله الحسنى، التقويم الهجري، الصوتيات والويدجت.
 
-## Production work still required
-The current commit is a buildable UI foundation, not a finished religious-content application. Before release:
-1. Integrate verified Quran text and metadata with required attribution/license.
-2. Implement local prayer-time calculation from device coordinates and configurable calculation method; validate Egypt defaults.
-3. Implement prayer notifications/audio with Android runtime permissions and exact-alarm/background limitations handled correctly.
-4. Implement Qibla direction using location and device sensors, including calibration and sensor-availability handling.
-5. Add sourced azkar and the complete Asma Allah al-Husna dataset with references.
-6. Add Hijri conversion and user-adjustable day offset.
-7. Add persistence, accessibility, tests, app icon, privacy policy, and release signing.
+الموقع المرجعي بوابة محتوى مؤسسية؛ لذلك تُنقل هيكلية المحتوى والتصنيفات إلى واجهات Android أصلية مع الحفاظ على ألوان وشعار بيّنات، وليس نسخ HTML حرفيًا.
 
-No secret keys are required for this foundation.
+## المصادر والحقوق
+
+- مواقيت الصلاة: خدمة بيّنات الرسمية تتيح اختيار اليوم/الأسبوع/الشهر/فترة محددة، الموقع عبر الجهاز أو الخريطة، اختيار البلد والمدينة، وتنزيل PDF وإمساكية رمضان. يجب إظهار طريقة الحساب ومصدر المواقيت وعدم الادعاء بمطابقة رسمية قبل التحقق من قواعد الحساب المعتمدة.
+- الحساب المحلي للصلاة: مكتبة Adhan؛ طريقة الحساب والمذهب قابلة للاختيار، ولا تُفترض مدينة المستخدم.
+- نص القرآن: Tanzil Uthmani فقط بعد تضمين ملف المصدر الأصلي دون تعديل، مع إشعار الترخيص ورابط Tanzil في التطبيق. لا يُستخدم نص قرآني منسوخ بلا توثيق.
+- الأذكار والأدعية: يلزم إظهار المصدر والمرجع لكل نص، وعدم إنشاء نصوص منسوبة إلى الحديث دون تحقق.
+- الأذان والتلاوات: لا تُضمّن تسجيلات إلا بترخيص واضح يسمح بإعادة التوزيع؛ ملفات المستخدم أو الروابط المصرح بها خيار مستقل.
+
+## متطلبات Android
+
+- الموقع: طلب الإذن وقت الحاجة فقط، مع دعم الإدخال اليدوي عند الرفض.
+- الإشعارات: طلب POST_NOTIFICATIONS على Android 13+، وقنوات مستقلة للأذان والتذكير.
+- المنبهات الدقيقة: لا تُستخدم إلا إذا احتاجها المستخدم وسمح بها النظام؛ توفير بديل WorkManager عند عدم توفرها.
+- الصوت: Media3 مع احترام وضع الصامت/عدم الإزعاج وسياسات foreground service.
+- الويدجت: Android AppWidget/Glance للشاشة الرئيسية. عرض معلومات الصلاة على شاشة القفل يعتمد على إصدار Android والجهاز وسياسات الشركة المصنّعة؛ لا يمكن ضمان ويدجت Lock Screen موحد على كل الأجهزة.
+
+## التحقق
+
+كل دفعة تغيير تُبنى عبر GitHub Actions workflow Bayynat Android APK. نجاح assembleDebug لا يغني عن اختبار GPS والحساسات والإشعارات والصوت والويدجت على جهاز فعلي.
