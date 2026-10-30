@@ -2,7 +2,7 @@ package com.bayynat.app.core
 
 import com.batoulapps.adhan.CalculationMethod
 import com.batoulapps.adhan.Coordinates
-import com.batoulapps.adhan.DateComponents
+import com.batoulapps.adhan.data.DateComponents
 import com.batoulapps.adhan.PrayerTimes
 import java.text.SimpleDateFormat
 import java.util.Date
