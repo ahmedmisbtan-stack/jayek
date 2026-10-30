@@ -18,7 +18,7 @@ data class PrayerSchedule(
     val isha: Date
 ) {
     fun nextPrayer(now: Date = Date()): Pair<String, Date> {
-        val items = listOf("الفجر" to fajr, "الشروق" to sunrise, "الظهر" to dhuhr, "العصر" to asr, "المغرب" to maghrib, "العشاء" to isha)
+        val items = listOf("الفجر" to fajr, "الظهر" to dhuhr, "العصر" to asr, "المغرب" to maghrib, "العشاء" to isha)
         return items.firstOrNull { it.second.after(now) } ?: (
             "الفجر" to Calendar.getInstance().apply { time = fajr; add(Calendar.DAY_OF_YEAR, 1) }.time
         )
