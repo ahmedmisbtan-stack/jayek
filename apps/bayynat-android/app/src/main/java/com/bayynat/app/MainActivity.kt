@@ -35,6 +35,10 @@ import com.bayynat.app.names.NamesScreenContent
 import com.bayynat.app.azkar.AzkarScreenContent
 import com.bayynat.app.content.HaqibatScreenContent
 import com.bayynat.app.core.HijriDateProvider
+import com.bayynat.app.core.PrayerCalculator
+import com.batoulapps.adhan.CalculationMethod
+import java.text.SimpleDateFormat
+import java.util.Locale
 import java.util.Date
 
 private val Gold = Color(0xFFD99A32)
@@ -169,6 +173,18 @@ private fun BayynatApp() {
 
 @Composable
 private fun HomeScreen(onSelect: (Int) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val prayerPrefs = remember(context) { context.getSharedPreferences("bayynat_prayer_location", 0) }
+    val savedLat = prayerPrefs.getString("latitude", null)?.toDoubleOrNull()
+    val savedLon = prayerPrefs.getString("longitude", null)?.toDoubleOrNull()
+    val savedMethod = runCatching {
+        CalculationMethod.valueOf(prayerPrefs.getString("method", CalculationMethod.MUSLIM_WORLD_LEAGUE.name) ?: "")
+    }.getOrDefault(CalculationMethod.MUSLIM_WORLD_LEAGUE)
+    val nextPrayer = remember(savedLat, savedLon, savedMethod) {
+        if (savedLat != null && savedLon != null) {
+            runCatching { PrayerCalculator.calculate(savedLat, savedLon, method = savedMethod).nextPrayer() }.getOrNull()
+        } else null
+    }
     Column(
         Modifier.fillMaxSize().padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -193,7 +209,16 @@ private fun HomeScreen(onSelect: (Int) -> Unit) {
                     Text("اجعل القرآن والذكر رفيق يومك", color = Color.White.copy(alpha = .9f))
                     Spacer(Modifier.height(18.dp))
                     Text("مواقيت الصلاة", color = Gold, fontWeight = FontWeight.SemiBold)
-                    Text("حدّد موقعك لعرض المواقيت، أو افتح خدمة بيّنات الرسمية", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                    if (nextPrayer != null) {
+                        Text(
+                            "الصلاة القادمة: ${nextPrayer.first} — " + SimpleDateFormat("HH:mm", Locale.getDefault()).format(nextPrayer.second),
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        Text("حدّد موقعك لعرض المواقيت، أو افتح خدمة بيّنات الرسمية", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
         }
