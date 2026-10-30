@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -73,7 +74,7 @@ private fun BayynatApp() {
         Destination("الأذكار", Icons.Default.Favorite),
         Destination("المزيد", Icons.Default.GridView)
     )
-    var selected by remember { mutableIntStateOf(0) }
+    var selected by remember { mutableIntStateOf(0) }\n    BackHandler(enabled = selected >= 5) { selected = 4 }
 
     Scaffold(
         containerColor = Ivory,
@@ -157,7 +158,7 @@ private fun HomeScreen(onSelect: (Int) -> Unit) {
                     Text("اجعل القرآن والذكر رفيق يومك", color = Color.White.copy(alpha = .9f))
                     Spacer(Modifier.height(18.dp))
                     Text("مواقيت الصلاة", color = Gold, fontWeight = FontWeight.SemiBold)
-                    Text("سيتم حسابها حسب موقعك بعد تفعيل إذن الموقع", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                    Text("حدّد موقعك لعرض المواقيت، أو افتح خدمة بيّنات الرسمية", color = Color.White, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
@@ -232,28 +233,34 @@ private fun AzkarScreen() {
 
 @Composable
 private fun MoreScreen(onSelect: (Int) -> Unit) {
-    Page("المزيد") {
-        val entries = listOf(
-            "اتجاه القبلة" to 5,
-            "التنبيهات والأذان" to 6,
-            "أسماء الله الحسنى" to 7,
-            "التقويم الهجري" to 8
-        )
-        entries.forEach { (title, target) ->
-            Card(
-                onClick = { onSelect(target) },
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.AutoAwesome, null, tint = Gold)
-                    Spacer(Modifier.width(12.dp))
-                    Text(title, modifier = Modifier.weight(1f), color = Ink, fontWeight = FontWeight.Medium)
-                    Icon(Icons.Default.ChevronLeft, null, tint = Green)
+    val entries = listOf(
+        "اتجاه القبلة" to 5,
+        "التنبيهات والأذان" to 6,
+        "أسماء الله الحسنى" to 7,
+        "التقويم الهجري" to 8,
+        "الفقه" to 9,
+        "المكتبة" to 10,
+        "أرشيف السيد" to 11,
+        "حقيبة بيّنات" to 12
+    )
+    Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("المزيد", style = MaterialTheme.typography.headlineSmall, color = Navy, fontWeight = FontWeight.Bold)
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            items(entries) { (title, target) ->
+                Card(
+                    onClick = { onSelect(target) },
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AutoAwesome, null, tint = Gold)
+                        Spacer(Modifier.width(12.dp))
+                        Text(title, modifier = Modifier.weight(1f), color = Ink, fontWeight = FontWeight.Medium)
+                        Icon(Icons.Default.ChevronLeft, null, tint = Green)
+                    }
                 }
             }
         }
-        Text("محتوى الموقع: الفقه، المكتبة، حقيبة بيّنات، الأرشيف، الأخبار والمحاضرات.")
     }
 }
 
