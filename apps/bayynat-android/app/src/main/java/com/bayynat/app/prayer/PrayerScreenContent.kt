@@ -41,6 +41,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.bayynat.app.widget.PrayerWidgetUpdater
+import com.bayynat.app.widget.PrayerWidgetWork
 import com.bayynat.app.notifications.PrayerAlarmScheduler
 import com.bayynat.app.notifications.PrayerNotifications
 import kotlinx.coroutines.launch
@@ -128,6 +129,13 @@ fun PrayerScreenContent() {
                 val next = result.nextPrayer()
                 nextPrayerName = next.first
                 nextPrayerAt = next.second
+                context.getSharedPreferences("bayynat_prayer_location", 0).edit()
+                    .putString("latitude", lat.toString())
+                    .putString("longitude", lon.toString())
+                    .putString("method", method.name)
+                    .putString("location", locationLabel)
+                    .apply()
+                PrayerWidgetWork.schedule(context)
                 alertsEnabled = false
                 val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(next.second)
                 scope.launch { PrayerWidgetUpdater.update(context, next.first, time, locationLabel) }
