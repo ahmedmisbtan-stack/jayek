@@ -58,9 +58,9 @@ class PrayerWidget : GlanceAppWidget() {
                 Spacer(GlanceModifier.height(5.dp))
                 Text("الصلاة القادمة", style = TextStyle(color = ColorProvider(Color.White), fontSize = 12.sp))
                 Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
-                    Text(prayer, style = TextStyle(color = ColorProvider(Color.WHITE), fontSize = 20.sp, fontWeight = FontWeight.Bold))
+                    Text(prayer, style = TextStyle(color = ColorProvider(Color.White), fontSize = 20.sp, fontWeight = FontWeight.Bold))
                     Spacer(GlanceModifier.width(10.dp))
-                    Text(time, style = TextStyle(color = ColorProvider(Color.rgb(217, 154, 50)), fontSize = 22.sp, fontWeight = FontWeight.Bold))
+                    Text(time, style = TextStyle(color = ColorProvider(Color(0xFFD99A32)), fontSize = 22.sp, fontWeight = FontWeight.Bold))
                 }
                 Text(location, style = TextStyle(color = ColorProvider(Color.LightGray), fontSize = 10.sp))
             }
