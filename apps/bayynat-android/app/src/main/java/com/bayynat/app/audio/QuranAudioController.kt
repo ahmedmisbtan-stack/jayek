@@ -4,11 +4,13 @@ import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
 import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.MediaMetadata
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import java.util.concurrent.Executor
 
+@OptIn(UnstableApi::class)
 class QuranAudioController(context: Context) {
     private val appContext = context.applicationContext
     private val executor = Executor { command -> command.run() }
