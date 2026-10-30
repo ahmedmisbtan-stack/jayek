@@ -16,6 +16,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +42,7 @@ fun QuranScreenContent() {
     val repository = remember(context) { QuranRepository(context) }
     val preferences = remember(context) { context.getSharedPreferences("quran_cache_v1", 0) }
     var lastSurahNumber by remember { mutableIntStateOf(preferences.getInt("last_surah", 0)) }
+    var query by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     var surahs by remember { mutableStateOf<List<SurahDto>>(emptyList()) }
     var selected by remember { mutableStateOf<SurahDetailDto?>(null) }
@@ -69,6 +71,7 @@ fun QuranScreenContent() {
     ) {
         if (selected == null) {
             Text("القرآن الكريم", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            OutlinedTextField(value = query, onValueChange = { query = it }, label = { Text("ابحث باسم السورة") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
             Text("فهرس السور — نص عثماني، مع حفظ السور التي تفتحها للقراءة دون اتصال")
             if (lastSurahNumber in 1..114 && !loading) {
                 Button(
@@ -95,7 +98,7 @@ fun QuranScreenContent() {
                     Button(onClick = { loadCatalogue() }) { Text("إعادة المحاولة") }
                 }
                 else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(surahs, key = { it.number }) { surah ->
+                    items(surahs.filter { it.name.contains(query, true) || it.englishName.contains(query, true) || it.number.toString() == query }, key = { it.number }) { surah ->
                         Card(
                             onClick = {
                                 scope.launch {
