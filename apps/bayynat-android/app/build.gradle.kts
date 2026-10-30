@@ -33,16 +33,15 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
-    // Prayer calculations (offline, on-device).
     implementation("com.batoulapps.adhan:adhan:1.2.1")
-
-    // Persistent preferences, reliable scheduled background work and widgets.
     implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation("androidx.work:work-runtime-ktx:2.10.1")
     implementation("androidx.glance:glance:1.2.0")
     implementation("androidx.glance:glance-appwidget:1.2.0")
 
-    // Quran text API; responses are cached locally by the repository.\n    implementation("com.squareup.retrofit2:retrofit:2.11.0")\n    implementation("com.squareup.retrofit2:converter-gson:2.11.0")\n\n    // Audio playback for Quran recitations and adhan streams/files.
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+
     implementation("androidx.media3:media3-exoplayer:1.5.1")
     implementation("androidx.media3:media3-session:1.5.1")
 
